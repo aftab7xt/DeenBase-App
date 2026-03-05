@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -20,10 +21,10 @@ class GoalViewModel(application: Application) : AndroidViewModel(application) {
     private val settingsManager = SettingsManager(application)
     private val repository = QuranRepository()
 
-    val goalSurahId   = settingsManager.goalSurahId.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 1)
-    val goalVerse     = settingsManager.goalVerse.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 1)
-    val dailyTarget   = settingsManager.goalDailyTarget.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 10)
-    val todayCount    = settingsManager.goalTodayCount.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+    val goalSurahId = settingsManager.goalSurahId.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 1)
+    val goalVerse   = settingsManager.goalVerse.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 1)
+    val dailyTarget = settingsManager.goalDailyTarget.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 10)
+    val todayCount  = settingsManager.goalTodayCount.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     private val _surahs = MutableStateFlow<List<SurahInfo>>(emptyList())
     val surahs: StateFlow<List<SurahInfo>> = _surahs.asStateFlow()
@@ -42,9 +43,10 @@ class GoalViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun resetIfNewDay() {
         viewModelScope.launch {
-            val savedDate = settingsManager.goalTodayDate.stateIn(
-                viewModelScope, SharingStarted.Eagerly, ""
-            ).value
+            // FIX: use .first() to wait for the real DataStore value.
+            // The previous stateIn(...).value always returned "" before DataStore
+            // had loaded, causing the count to reset on every app launch.
+            val savedDate = settingsManager.goalTodayDate.first()
             val today = LocalDate.now().toString()
             if (savedDate != today) {
                 settingsManager.setGoalTodayCount(0)
