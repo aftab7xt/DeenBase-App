@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -73,6 +74,7 @@ import com.deenbase.app.features.tasbih.ui.SubhanallahScreen
 import com.deenbase.app.features.tasbih.viewmodel.TasbihViewModel
 import com.deenbase.app.ui.theme.DeenBaseTheme
 import com.deenbase.app.data.SettingsManager
+import com.deenbase.app.update.UpdateViewModel
 
 sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
     object Home : Screen("home", "Home", Icons.Filled.Home)
@@ -88,7 +90,6 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         com.deenbase.app.notifications.NotificationHelper.createChannels(this)
         com.deenbase.app.notifications.NotificationHelper.scheduleAdhkarAlarms(this)
-        // NOTE: Notification permission is now requested during onboarding (Notifications page).
         val navigateTo = intent?.getStringExtra("navigate_to")
         setContent {
             val settingsManager = remember { SettingsManager(applicationContext) }
@@ -105,6 +106,30 @@ class MainActivity : ComponentActivity() {
                     WindowInsetsControllerCompat(window, view).isAppearanceLightStatusBars = !darkTheme
                     WindowInsetsControllerCompat(window, view).isAppearanceLightNavigationBars = !darkTheme
                 }
+
+                // ── Update check ──────────────────────────────────────────────
+                val updateViewModel: UpdateViewModel = viewModel()
+                val updateState by updateViewModel.state.collectAsStateWithLifecycle()
+                val context = LocalContext.current
+
+                if (updateState.showDialog) {
+                    AlertDialog(
+                        onDismissRequest = { updateViewModel.dismissDialog() },
+                        title = { Text("Update Available") },
+                        text = { Text("Version ${updateState.latestVersion} is ready. Update now for the latest features and fixes.") },
+                        confirmButton = {
+                            Button(onClick = { updateViewModel.startDownload(context) }) {
+                                Text("Update Now")
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { updateViewModel.dismissDialog() }) {
+                                Text("Remind Me Later")
+                            }
+                        }
+                    )
+                }
+
                 val navController = rememberNavController()
                 val screens = listOf(Screen.Home, Screen.Quran, Screen.Dhikr, Screen.Settings)
 
@@ -114,7 +139,6 @@ class MainActivity : ComponentActivity() {
 
                 when (onboardingDone) {
                     null -> {
-                        // Still reading DataStore — show blank to avoid flash
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -126,7 +150,6 @@ class MainActivity : ComponentActivity() {
                     }
                     else -> {
 
-                // Handle notification deep links
                 LaunchedEffect(navigateTo) {
                     when (navigateTo) {
                         "goal_quran" -> {
@@ -140,8 +163,6 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                // 1. Track destination IMMEDIATELY when navigation starts (not after settle)
-                //    This prevents the nav bar being visible for ~10 frames during push navigation
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentRoute = navBackStackEntry?.destination?.route
 
@@ -201,12 +222,12 @@ class MainActivity : ComponentActivity() {
                                     onNavigateBack = { navController.popBackStack() }
                                 )
                             }
-                            composable(Screen.Quran.route) { 
+                            composable(Screen.Quran.route) {
                                 QuranScreen(
                                     onSurahClick = { surahId, surahName ->
                                         navController.navigate("browse_surah/$surahId/${surahName.replace(" ", "_")}")
                                     }
-                                ) 
+                                )
                             }
                             composable(
                                 route = "browse_surah/{surahId}/{surahName}",
@@ -267,14 +288,14 @@ class MainActivity : ComponentActivity() {
                                     onNavigateBack = { navController.popBackStack() }
                                 )
                             }
-                            composable(Screen.Settings.route) { 
+                            composable(Screen.Settings.route) {
                                 SettingsScreen(
                                     onNavigateBack = { navController.popBackStack() },
                                     onQuranSettingsClick = { navController.navigate("quran_settings") },
                                     onQuranGoalClick = { navController.navigate("quran_goal") },
                                     onAppPreferencesClick = { navController.navigate("app_preferences") },
                                     onNotificationSettingsClick = { navController.navigate("notification_settings") }
-                                ) 
+                                )
                             }
                             composable(
                                 route = "app_preferences",
@@ -405,7 +426,7 @@ class MainActivity : ComponentActivity() {
                             }
                         }
 
-                        // 2. Wrap the BottomBar in AnimatedVisibility so it slides away cleanly
+                        // ── Bottom bar ────────────────────────────────────────
                         AnimatedVisibility(
                             visible = isBottomBarVisible,
                             enter = slideInVertically(animationSpec = tween(durationMillis = 350, easing = androidx.compose.animation.core.FastOutSlowInEasing)) { it } + fadeIn(tween(350)),
@@ -437,10 +458,12 @@ fun FloatingBottomBar(
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
-    
+
     val selectedIndex = screens.indexOfFirst { screen ->
         val isExactMatch = currentDestination?.route == screen.route
-        val isReadingSurah = screen.route == Screen.Quran.route && (currentDestination?.route?.startsWith("browse_surah") == true || currentDestination?.route?.startsWith("goal_surah") == true)
+        val isReadingSurah = screen.route == Screen.Quran.route &&
+            (currentDestination?.route?.startsWith("browse_surah") == true ||
+             currentDestination?.route?.startsWith("goal_surah") == true)
         isExactMatch || isReadingSurah
     }.coerceAtLeast(0)
 
@@ -468,6 +491,7 @@ fun FloatingBottomBar(
         shadowElevation = 8.dp
     ) {
         Box(modifier = Modifier.padding(outerPadding)) {
+            // Sliding indicator
             Box(
                 modifier = Modifier
                     .offset(x = indicatorOffset)
@@ -482,9 +506,12 @@ fun FloatingBottomBar(
                 horizontalArrangement = Arrangement.spacedBy(spacing)
             ) {
                 screens.forEach { screen ->
-                    val isSelected = currentDestination?.route == screen.route || 
-                                     (screen.route == Screen.Quran.route && (currentDestination?.route?.startsWith("browse_surah") == true || currentDestination?.route?.startsWith("goal_surah") == true)) ||
-                                     (screen.route == Screen.Dhikr.route && currentDestination?.route?.startsWith("dhikr_detail") == true)
+                    val isSelected = currentDestination?.route == screen.route ||
+                        (screen.route == Screen.Quran.route &&
+                            (currentDestination?.route?.startsWith("browse_surah") == true ||
+                             currentDestination?.route?.startsWith("goal_surah") == true)) ||
+                        (screen.route == Screen.Dhikr.route &&
+                            currentDestination?.route?.startsWith("dhikr_detail") == true)
                     val interactionSource = remember { MutableInteractionSource() }
                     Box(
                         modifier = Modifier
