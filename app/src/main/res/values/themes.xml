@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.DeenBase" parent="android:Theme.Material.Light.NoActionBar" />
+
+    <style name="Theme.DeenBase.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#F6F0FF</item>
+        <item name="postSplashScreenTheme">@style/Theme.DeenBase</item>
+    </style>
+</resources>
