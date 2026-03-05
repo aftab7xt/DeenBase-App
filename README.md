@@ -25,13 +25,13 @@ No ads. No clutter. Just content.
   - Ibn Majah
   - Nasai
   - Muwatta Malik
-- Browse by Book → Chapter → Hadith
+- Browse by Book -> Chapter -> Hadith
 - Full-text search across the entire database
 - Grade displayed for each Hadith (Sahih, Hasan, Da'if)
 
 ### 📿 Dhikr
 - Morning and Evening Adhkar
-- Subhanallah × 100 Tasbih counter with haptic feedback
+- Subhanallah x100 Tasbih counter with haptic feedback
 - Beautiful animated UI
 
 ### 🔔 Notifications
@@ -66,14 +66,14 @@ Get the latest APK from the [Releases](https://github.com/aftab7xt/DeenBase-App/
 ## 📌 Notes
 
 - Internet connection is required for Quran and Hadith (data is fetched from the cloud)
-- The keystore used for signing is kept private — do not submit PRs that modify signing config
-- `local.properties` is gitignored and contains private API credentials — you will need to supply your own Turso database to build from source
+- The keystore used for signing is kept private, do not submit PRs that modify signing config
+- `local.properties` is gitignored and contains private API credentials, you will need to supply your own Turso database to build from source
 
 ---
 
 ## 🤝 Contributing
 
-Pull requests are welcome. For major changes please open an issue first to discuss what you'd like to change.
+Pull requests are welcome. For major changes please open an issue first to discuss what you would like to change.
 
 ---
 
