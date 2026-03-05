@@ -18,7 +18,7 @@ No ads. No clutter. Just content.
   - Sahih al-Bukhari, Sahih Muslim, Abu Dawud, Tirmidhi, Ibn Majah, Nasai, Muwatta Malik
 - Browse by Book -> Chapter -> Hadith
 - Full-text search across the entire database
-- Grade shown for each Hadith (Sahih, Hasan, Da'if)
+- Grade shown for each Hadith
 
 ### 📿 Dhikr and Tasbih
 - Morning and Evening Adhkar
