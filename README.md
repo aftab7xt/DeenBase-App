@@ -22,7 +22,7 @@ No ads. No clutter. Just content.
 
 ### 📿 Dhikr and Tasbih
 - Morning and Evening Adhkar
-- Subhanallah x100 Tasbih counter with haptic feedback
+- Tasbih Counter
 
 ### 🔔 Notifications
 - Daily Quran goal reminders
@@ -49,17 +49,6 @@ Get the latest APK from the [Releases](https://github.com/aftab7xt/DeenBase-App/
 - **Database:** Turso (libSQL cloud SQLite)
 - **Networking:** OkHttp
 - **Min SDK:** Android 8.0 (API 26)
-
----
-
-## 🔧 Building from Source
-
-`local.properties` is gitignored and contains private credentials. To build locally you will need to create your own Turso database and add the following to your `local.properties`:
-
-```
-TURSO_URL=your_turso_url
-TURSO_TOKEN=your_turso_token
-```
 
 ---
 
