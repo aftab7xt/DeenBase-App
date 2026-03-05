@@ -1,9 +1,14 @@
 package com.deenbase.app.features.quran.data
 
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONArray
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
+
+// ── Data classes ──────────────────────────────────────────────────────────────
 
 data class SurahInfo(
     val id: Int,
@@ -28,114 +33,129 @@ data class Verse(
 // Bismillah in Uthmani script — shown as a decorative header, not as a verse
 const val BISMILLAH = "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ"
 
-// Surahs where Bismillah is NOT shown as a header:
-// 1 (Al-Fatiha) — it IS verse 1 so we show it as a verse naturally
+// Surahs where Bismillah header is NOT shown:
+// 1 (Al-Fatiha) — Bismillah IS verse 1, shown naturally
 // 9 (At-Tawbah) — no Bismillah at all
 val SURAH_NO_BISMILLAH_HEADER = setOf(1, 9)
 
+// ── Repository ────────────────────────────────────────────────────────────────
+
 class QuranRepository {
+
+    private val TURSO_URL   = com.deenbase.app.BuildConfig.TURSO_URL
+    private val TURSO_TOKEN = com.deenbase.app.BuildConfig.TURSO_TOKEN
+
+    private val JSON_MEDIA = "application/json".toMediaType()
 
     private val client = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
         .build()
 
-    private val baseUrl = "https://api.alquran.cloud/v1"
+    // ── Low-level Turso query (blocking) ─────────────────────────────────────
 
-    private fun translationEdition(lang: String) =
-        if (lang == "urdu") "ur.jalandhry" else "en.sahih"
+    private fun query(sql: String, args: List<Any?> = emptyList()): List<Map<String, String?>> {
+        val argsArray = JSONArray()
+        for (arg in args) {
+            argsArray.put(when (arg) {
+                null    -> JSONObject().put("type", "null")
+                is Int  -> JSONObject().put("type", "integer").put("value", arg.toString())
+                is Long -> JSONObject().put("type", "integer").put("value", arg.toString())
+                else    -> JSONObject().put("type", "text").put("value", arg.toString())
+            })
+        }
+
+        val stmt = JSONObject()
+            .put("sql", sql)
+            .put("args", argsArray)
+
+        val body = JSONObject()
+            .put("requests", JSONArray()
+                .put(JSONObject().put("type", "execute").put("stmt", stmt))
+                .put(JSONObject().put("type", "close"))
+            )
+
+        val request = Request.Builder()
+            .url(TURSO_URL)
+            .addHeader("Authorization", "Bearer $TURSO_TOKEN")
+            .addHeader("Content-Type", "application/json")
+            .post(body.toString().toRequestBody(JSON_MEDIA))
+            .build()
+
+        val response = client.newCall(request).execute()
+        val responseBody = response.body?.string() ?: error("Empty response from Turso")
+        if (!response.isSuccessful) error("Turso HTTP ${response.code}: $responseBody")
+
+        val json   = JSONObject(responseBody)
+        val result = json.getJSONArray("results")
+            .getJSONObject(0)
+            .getJSONObject("response")
+            .getJSONObject("result")
+
+        val cols = result.getJSONArray("cols")
+        val rows = result.getJSONArray("rows")
+
+        val colNames = (0 until cols.length()).map { cols.getJSONObject(it).getString("name") }
+
+        return (0 until rows.length()).map { rowIdx ->
+            val row = rows.getJSONArray(rowIdx)
+            colNames.mapIndexed { colIdx, name ->
+                val cell = row.getJSONObject(colIdx)
+                name to if (cell.getString("type") == "null") null
+                         else cell.optString("value")
+            }.toMap()
+        }
+    }
+
+    // ── Public API ────────────────────────────────────────────────────────────
 
     fun getSurahsList(): List<SurahInfo> {
-        val request = Request.Builder().url("$baseUrl/surah").build()
-        val response = client.newCall(request).execute()
-        val body = response.body?.string() ?: return emptyList()
-        val data = JSONObject(body).getJSONArray("data")
-        val surahs = mutableListOf<SurahInfo>()
-        for (i in 0 until data.length()) {
-            val obj = data.getJSONObject(i)
-            surahs.add(
-                SurahInfo(
-                    id = obj.getInt("number"),
-                    nameArabic = obj.getString("name"),
-                    nameTransliteration = obj.getString("englishName"),
-                    nameEnglish = obj.getString("englishNameTranslation"),
-                    type = obj.getString("revelationType"),
-                    totalVerses = obj.getInt("numberOfAyahs")
-                )
+        val rows = query(
+            "SELECT surah_number, name_arabic, name_transliteration, name_english, total_verses, revelation_type FROM surahs ORDER BY surah_number"
+        )
+        return rows.map { row ->
+            SurahInfo(
+                id                  = row["surah_number"]?.toIntOrNull() ?: 0,
+                nameArabic          = row["name_arabic"] ?: "",
+                nameTransliteration = row["name_transliteration"] ?: "",
+                nameEnglish         = row["name_english"] ?: "",
+                type                = row["revelation_type"] ?: "",
+                totalVerses         = row["total_verses"]?.toIntOrNull() ?: 0
             )
         }
-        return surahs
     }
 
     fun getVersesForSurah(surahId: Int, lang: String): List<Verse> {
-        val edition = translationEdition(lang)
-        val url = "$baseUrl/surah/$surahId/editions/quran-uthmani,$edition"
-        val request = Request.Builder().url(url).build()
-        val response = client.newCall(request).execute()
-        val body = response.body?.string() ?: return emptyList()
+        val rows = query(
+            """
+            SELECT v.id, v.surah_number, v.verse_number, v.arabic_text,
+                   v.english_text, v.urdu_text, v.juz,
+                   s.name_transliteration, s.name_arabic
+            FROM verses v
+            JOIN surahs s ON v.surah_number = s.surah_number
+            WHERE v.surah_number = ?
+            ORDER BY v.verse_number
+            """.trimIndent(),
+            listOf(surahId)
+        )
 
-        val data = JSONObject(body).getJSONArray("data")
-        val arabicAyahs = data.getJSONObject(0).getJSONArray("ayahs")
-        val transAyahs  = data.getJSONObject(1).getJSONArray("ayahs")
-
-        val verses = mutableListOf<Verse>()
-        for (i in 0 until arabicAyahs.length()) {
-            val arabic = arabicAyahs.getJSONObject(i)
-            val trans  = transAyahs.getJSONObject(i)
-            val verseNum = arabic.getInt("numberInSurah")
-            var arabicText = arabic.getString("text")
-            var transText = trans.getString("text")
-
-            // For surahs that get a Bismillah header (not 1 or 9),
-            // strip the Bismillah from verse 1. The API always ends Bismillah
-            // with the word for "Merciful" (رحيم) so we split on that boundary.
-            if (verseNum == 1 && surahId !in SURAH_NO_BISMILLAH_HEADER) {
-                // Strip diacritics to reliably find "رحيم" (rahim) — the last word of Bismillah
-                // regardless of which Unicode diacritic codepoints the API uses
-                // Strip diacritics using char code ranges, find rahim (رحيم) base letters
-                fun isDiacritic(c: Char): Boolean {
-                    val cp = c.code
-                    return cp in 0x0610..0x061A || cp in 0x064B..0x065F ||
-                           cp == 0x0670 || cp in 0x06D6..0x06DC ||
-                           cp in 0x06DF..0x06E4 || cp == 0x06E7 ||
-                           cp == 0x06E8 || cp in 0x06EA..0x06ED
-                }
-                val stripped = arabicText.filter { !isDiacritic(it) }
-                val rahimBase = "رحيم" // رحيم without diacritics
-                val idx = stripped.indexOf(rahimBase)
-                if (idx != -1) {
-                    // Map stripped index back to original string position
-                    var origPos = 0
-                    var strippedCount = 0
-                    val targetStrippedPos = idx + rahimBase.length
-                    while (origPos < arabicText.length && strippedCount < targetStrippedPos) {
-                        if (!isDiacritic(arabicText[origPos])) strippedCount++
-                        origPos++
-                    }
-                    while (origPos < arabicText.length && isDiacritic(arabicText[origPos])) origPos++
-                    arabicText = arabicText.substring(origPos).trimStart()
-                }
-                // Strip bismillah from English translation
-                val engBismillah = Regex("""^In the name of Allah[^.]+\.\s*""", RegexOption.IGNORE_CASE)
-                transText = engBismillah.replace(transText, "").trimStart()
+        return rows.map { row ->
+            val translationText = if (lang == "urdu") {
+                row["urdu_text"] ?: row["english_text"] ?: ""
+            } else {
+                row["english_text"] ?: ""
             }
 
-            val surahObj = arabic.optJSONObject("surah")
-            val surahName = surahObj?.optString("englishName") ?: ""
-            val surahNameArabic = surahObj?.optString("name") ?: ""
-            verses.add(
-                Verse(
-                    id = arabic.getInt("number"),
-                    surahId = surahId,
-                    verseNumber = verseNum,
-                    arabicText = arabicText,
-                    translationText = transText,
-                    juz = arabic.optInt("juz", 0),
-                    surahName = surahName,
-                    surahNameArabic = surahNameArabic
-                )
+            Verse(
+                id              = row["id"]?.toIntOrNull() ?: 0,
+                surahId         = row["surah_number"]?.toIntOrNull() ?: surahId,
+                verseNumber     = row["verse_number"]?.toIntOrNull() ?: 0,
+                arabicText      = row["arabic_text"] ?: "",
+                translationText = translationText,
+                juz             = row["juz"]?.toIntOrNull() ?: 0,
+                surahName       = row["name_transliteration"] ?: "",
+                surahNameArabic = row["name_arabic"] ?: ""
             )
         }
-        return verses
     }
 }

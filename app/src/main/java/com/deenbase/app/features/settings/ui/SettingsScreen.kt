@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.deenbase.app.BuildConfig
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -55,25 +56,25 @@ fun SettingsScreen(
                 .padding(innerPadding)
                 .padding(horizontal = 16.dp)
         ) {
-            // ── QURAN ───────────────────────────────────────────────────
+            // ── QURAN ────────────────────────────────────────────────────
             Text(
                 text = "Quran",
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(start = 8.dp, bottom = 8.dp, top = 16.dp)
+                modifier = Modifier.padding(start = 8.dp, bottom = 8.dp, top = 8.dp)
             )
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 SettingsItem(
                     title = "Quran Settings",
-                    subtitle = "Font, translation, and display",
+                    subtitle = "Font, translation, display",
                     leadingIcon = Icons.AutoMirrored.Filled.MenuBook,
                     index = 0,
                     totalItems = 2,
                     onClick = onQuranSettingsClick
                 )
                 SettingsItem(
-                    title = "Daily Quran Goal",
-                    subtitle = "Set your daily verse target",
+                    title = "Reading Goal",
+                    subtitle = "Daily verse target",
                     leadingIcon = Icons.Filled.TrackChanges,
                     index = 1,
                     totalItems = 2,
@@ -81,9 +82,9 @@ fun SettingsScreen(
                 )
             }
 
-            // ── GENERAL ─────────────────────────────────────────────────
+            // ── APP ──────────────────────────────────────────────────────
             Text(
-                text = "General",
+                text = "App",
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(start = 8.dp, bottom = 8.dp, top = 24.dp)
@@ -91,7 +92,7 @@ fun SettingsScreen(
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 SettingsItem(
                     title = "App Preferences",
-                    subtitle = "Theme, haptics, and display",
+                    subtitle = "Theme, haptics",
                     leadingIcon = Icons.Filled.Settings,
                     index = 0,
                     totalItems = 2,
@@ -117,7 +118,7 @@ fun SettingsScreen(
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 SettingsItem(
                     title = "DeenBase Version",
-                    subtitle = "1.0.0 (Beta)",
+                    subtitle = BuildConfig.VERSION_NAME,
                     leadingIcon = Icons.Filled.Info,
                     index = 0,
                     totalItems = 1
@@ -151,27 +152,44 @@ fun SettingsItem(
         label = "bottomRounding"
     )
 
+    val shape = RoundedCornerShape(
+        topStart = topRadius, topEnd = topRadius,
+        bottomStart = bottomRadius, bottomEnd = bottomRadius
+    )
+
     ListItem(
-        headlineContent = { Text(title, fontWeight = FontWeight.SemiBold) },
-        supportingContent = { Text(subtitle) },
+        headlineContent = {
+            Text(title, fontWeight = FontWeight.Medium)
+        },
+        supportingContent = {
+            Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        },
         leadingContent = {
             Icon(
                 imageVector = leadingIcon,
                 contentDescription = null,
-                modifier = Modifier.size(24.dp)
+                tint = MaterialTheme.colorScheme.primary
             )
         },
         trailingContent = {
-            Icon(
-                imageVector = Icons.Filled.ChevronRight,
-                contentDescription = null,
-                modifier = Modifier.size(20.dp),
-                tint = MaterialTheme.colorScheme.outline
-            )
+            if (onClick != {}) {
+                Icon(
+                    imageVector = Icons.Filled.ChevronRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         },
+        colors = ListItemDefaults.colors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        ),
         modifier = Modifier
-            .clip(RoundedCornerShape(topStart = topRadius, topEnd = topRadius, bottomStart = bottomRadius, bottomEnd = bottomRadius))
-            .clickable(interactionSource = interactionSource, indication = ripple(), onClick = onClick),
-        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+            .fillMaxWidth()
+            .clip(shape)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            )
     )
 }

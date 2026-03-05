@@ -450,9 +450,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         com.deenbase.app.notifications.NotificationHelper.createChannels(this)
         com.deenbase.app.notifications.NotificationHelper.scheduleAdhkarAlarms(this)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 0)
-        }
+        // NOTE: Notification permission is now requested during onboarding (Notifications page).
         val navigateTo = intent?.getStringExtra("navigate_to")
         setContent {
             val settingsManager = remember { SettingsManager(applicationContext) }
@@ -3562,9 +3560,9 @@ import java.util.concurrent.TimeUnit
 
 object HadithRepository {
 
-    // ── Turso config ──────────────────────────────────────────────────────────
-    private const val TURSO_URL   = "https://deen-base-aftab.aws-ap-south-1.turso.io/v2/pipeline"
-    private const val TURSO_TOKEN = "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3NzI2NDEyNzYsImlkIjoiMDE5Y2I5YTQtNWYwMS03NzkwLThiOTAtZGY2Mzg1ZDlmZTZkIiwicmlkIjoiMTQyNDQ1YmUtMWQ5Ny00ZWQ4LWJlNjMtNzBlYjgwOTk2MTY4In0.7y_z-_vEdIfE09DdfTlVSMC__4LFCwhl2KADvT6h8hJLDrkyMbtW-c1t708BVKB4sVQInn6nwsD0CcUqjDOEAw"
+    // ── Turso config — values injected from local.properties via BuildConfig ──
+    private val TURSO_URL   = com.deenbase.app.BuildConfig.TURSO_URL
+    private val TURSO_TOKEN = com.deenbase.app.BuildConfig.TURSO_TOKEN
 
     private val PAGE_SIZE = 20
 
@@ -6603,12 +6601,10 @@ import android.Manifest
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.Spring
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -6712,7 +6708,9 @@ fun OnboardingScreen(
     val isLastPage = currentPage == pages.lastIndex
     val page = pages[currentPage]
 
-    // Notification permission launcher
+    // ── Notification permission launcher ──────────────────────────────────────
+    // Triggered ONLY by the "Enable Notifications" button on the Notifications page.
+    // Advances to next page regardless of whether the user grants or denies.
     val notifLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { /* advance regardless of result */ currentPage++ }
@@ -6808,6 +6806,7 @@ fun OnboardingScreen(
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                             notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                         } else {
+                            // Pre-13: no runtime permission needed, just advance
                             currentPage++
                         }
                     },
@@ -6821,7 +6820,8 @@ fun OnboardingScreen(
                 Spacer(Modifier.height(12.dp))
             }
 
-            Spacer(Modifier.height(8.dp))
+            // ── Bottom spacer — keeps content clear of the floating bottom strip
+            Spacer(Modifier.height(100.dp))
         }
 
         // ── Bottom strip ──────────────────────────────────────────────────────
@@ -6845,50 +6845,42 @@ fun OnboardingScreen(
                 modifier = Modifier.align(Alignment.CenterStart)
             )
 
-            // Morphing next / close button
-            Box(
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .size(64.dp)
-                    .scale(nextScale)
-                    .background(
-                        color = nextColor,
-                        shape = RoundedCornerShape(nextCorner)
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                IconButton(
-                    onClick = {
-                        if (isLastPage) {
-                            scope.launch {
-                                SettingsManager(context).setOnboardingDone(true)
-                                onFinish()
-                            }
-                        } else {
-                            // Skip notification page action if not Android 13+
-                            if (page.actionLabel != null &&
-                                Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-                                currentPage++
-                            } else if (page.actionLabel == null) {
-                                currentPage++
-                            }
-                            // If actionLabel present on 13+, button handles it
-                            if (page.actionLabel != null &&
-                                Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                // already handled by action button; next arrow skips
-                                currentPage++
-                            }
-                        }
-                    },
-                    interactionSource = nextInteraction,
-                    modifier = Modifier.fillMaxSize()
+            // Morphing next / finish button
+            // On the Notifications page (actionLabel != null) the arrow is hidden —
+            // the "Enable Notifications" button is the only way to advance.
+            if (page.actionLabel == null) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .size(64.dp)
+                        .scale(nextScale)
+                        .background(
+                            color = nextColor,
+                            shape = RoundedCornerShape(nextCorner)
+                        ),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = if (isLastPage) Icons.Filled.Close else Icons.Filled.ArrowForward,
-                        contentDescription = if (isLastPage) "Finish" else "Next",
-                        tint = nextIconColor,
-                        modifier = Modifier.size(26.dp)
-                    )
+                    IconButton(
+                        onClick = {
+                            if (isLastPage) {
+                                scope.launch {
+                                    SettingsManager(context).setOnboardingDone(true)
+                                    onFinish()
+                                }
+                            } else {
+                                currentPage++
+                            }
+                        },
+                        interactionSource = nextInteraction,
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        Icon(
+                            imageVector = if (isLastPage) Icons.Filled.Close else Icons.Filled.ArrowForward,
+                            contentDescription = if (isLastPage) "Finish" else "Next",
+                            tint = nextIconColor,
+                            modifier = Modifier.size(26.dp)
+                        )
+                    }
                 }
             }
         }
@@ -7547,10 +7539,18 @@ class ExampleInstrumentedTest {
         val appContext = InstrumentationRegistry.getInstrumentation().targetContext
         assertEquals("com.deenbase.app", appContext.packageName)
     }
-}plugins {
+}import java.util.Properties
+
+plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+}
+
+// ── Read secrets from local.properties (gitignored) ──────────────────────────
+val localProps = Properties().apply {
+    val f = rootProject.file("local.properties")
+    if (f.exists()) load(f.inputStream())
 }
 
 android {
@@ -7562,9 +7562,13 @@ android {
         minSdk = 26
         targetSdk = 35
         versionCode = 1
-        versionName = "1.0"
+        versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // ── Expose secrets to code via BuildConfig ────────────────────────────
+        buildConfigField("String", "TURSO_URL",   "\"${localProps["TURSO_URL"]}\"")
+        buildConfigField("String", "TURSO_TOKEN", "\"${localProps["TURSO_TOKEN"]}\"")
     }
 
     buildTypes {
@@ -7585,6 +7589,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
