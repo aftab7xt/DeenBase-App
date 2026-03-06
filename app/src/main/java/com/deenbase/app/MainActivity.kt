@@ -64,6 +64,7 @@ import com.deenbase.app.features.hadith.viewmodel.HadithViewModel
 import com.deenbase.app.features.onboarding.ui.OnboardingScreen
 import com.deenbase.app.features.home.ui.HomeScreen
 import com.deenbase.app.features.quran.ui.QuranScreen
+import com.deenbase.app.features.quran.ui.SavedVersesScreen
 import com.deenbase.app.features.settings.ui.AppPreferencesScreen
 import com.deenbase.app.features.settings.ui.NotificationSettingsScreen
 import com.deenbase.app.features.settings.ui.QuranGoalScreen
@@ -188,7 +189,8 @@ class MainActivity : ComponentActivity() {
                     currentRoute != "hadith_chapters" &&
                     currentRoute != "hadith_list" &&
                     currentRoute != "hadith_detail" &&
-                    currentRoute != "hadith_search"
+                    currentRoute != "hadith_search" &&
+                    currentRoute != "saved_verses"
 
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
@@ -225,6 +227,19 @@ class MainActivity : ComponentActivity() {
                             composable(Screen.Quran.route) {
                                 QuranScreen(
                                     onSurahClick = { surahId, surahName ->
+                                        navController.navigate("browse_surah/$surahId/${surahName.replace(" ", "_")}")
+                                    },
+                                    onSavedClick = { navController.navigate("saved_verses") }
+                                )
+                            }
+                            composable(
+                                route = "saved_verses",
+                                enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
+                                popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
+                            ) {
+                                SavedVersesScreen(
+                                    onNavigateBack = { navController.popBackStack() },
+                                    onVerseClick = { surahId, verseNumber, surahName ->
                                         navController.navigate("browse_surah/$surahId/${surahName.replace(" ", "_")}")
                                     }
                                 )
@@ -463,7 +478,8 @@ fun FloatingBottomBar(
         val isExactMatch = currentDestination?.route == screen.route
         val isReadingSurah = screen.route == Screen.Quran.route &&
             (currentDestination?.route?.startsWith("browse_surah") == true ||
-             currentDestination?.route?.startsWith("goal_surah") == true)
+             currentDestination?.route?.startsWith("goal_surah") == true ||
+             currentDestination?.route == "saved_verses")
         isExactMatch || isReadingSurah
     }.coerceAtLeast(0)
 
