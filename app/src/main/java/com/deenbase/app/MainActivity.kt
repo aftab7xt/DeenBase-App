@@ -2,6 +2,7 @@ package com.deenbase.app
 
 import android.os.Build
 import android.os.Bundle
+import com.deenbase.app.BuildConfig
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
@@ -126,6 +127,19 @@ class MainActivity : ComponentActivity() {
                         dismissButton = {
                             TextButton(onClick = { updateViewModel.dismissDialog() }) {
                                 Text("Remind Me Later")
+                            }
+                        }
+                    )
+                }
+
+                if (updateState.noUpdateFound) {
+                    AlertDialog(
+                        onDismissRequest = { updateViewModel.dismissNoUpdate() },
+                        title = { Text("You're up to date") },
+                        text = { Text("DeenBase ${BuildConfig.VERSION_NAME} is the latest version.") },
+                        confirmButton = {
+                            Button(onClick = { updateViewModel.dismissNoUpdate() }) {
+                                Text("OK")
                             }
                         }
                     )
@@ -309,7 +323,9 @@ class MainActivity : ComponentActivity() {
                                     onQuranSettingsClick = { navController.navigate("quran_settings") },
                                     onQuranGoalClick = { navController.navigate("quran_goal") },
                                     onAppPreferencesClick = { navController.navigate("app_preferences") },
-                                    onNotificationSettingsClick = { navController.navigate("notification_settings") }
+                                    onNotificationSettingsClick = { navController.navigate("notification_settings") },
+                                    onCheckForUpdatesClick = { updateViewModel.checkForUpdate(manual = true) },
+                                    isCheckingForUpdates = updateState.isChecking
                                 )
                             }
                             composable(

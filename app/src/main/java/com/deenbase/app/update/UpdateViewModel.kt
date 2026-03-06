@@ -18,7 +18,9 @@ data class UpdateUiState(
     val latestVersion: String = "",
     val apkDownloadUrl: String = "",
     val isDownloading: Boolean = false,
-    val downloadId: Long = -1L
+    val downloadId: Long = -1L,
+    val isChecking: Boolean = false,
+    val noUpdateFound: Boolean = false
 )
 
 class UpdateViewModel(application: Application) : AndroidViewModel(application) {
@@ -27,17 +29,26 @@ class UpdateViewModel(application: Application) : AndroidViewModel(application) 
     val state: StateFlow<UpdateUiState> = _state.asStateFlow()
 
     init {
-        checkForUpdate()
+        checkForUpdate(manual = false)
     }
 
-    private fun checkForUpdate() {
+    fun checkForUpdate(manual: Boolean = false) {
+        if (_state.value.isChecking) return
+        _state.value = _state.value.copy(isChecking = true, noUpdateFound = false)
         viewModelScope.launch {
             val info = UpdateChecker.checkForUpdate(BuildConfig.VERSION_NAME)
             if (info != null) {
-                _state.value = UpdateUiState(
+                _state.value = _state.value.copy(
                     showDialog = true,
                     latestVersion = info.latestVersion,
-                    apkDownloadUrl = info.apkDownloadUrl
+                    apkDownloadUrl = info.apkDownloadUrl,
+                    isChecking = false,
+                    noUpdateFound = false
+                )
+            } else {
+                _state.value = _state.value.copy(
+                    isChecking = false,
+                    noUpdateFound = manual // only show "up to date" if user asked
                 )
             }
         }
@@ -45,6 +56,10 @@ class UpdateViewModel(application: Application) : AndroidViewModel(application) 
 
     fun dismissDialog() {
         _state.value = _state.value.copy(showDialog = false)
+    }
+
+    fun dismissNoUpdate() {
+        _state.value = _state.value.copy(noUpdateFound = false)
     }
 
     fun startDownload(context: Context) {
