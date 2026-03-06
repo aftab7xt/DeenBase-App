@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.NotificationsNone
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.SystemUpdateAlt
 import androidx.compose.material.icons.filled.TrackChanges
 import androidx.compose.material3.*
 import androidx.compose.material3.MaterialTheme.motionScheme
@@ -37,7 +38,9 @@ fun SettingsScreen(
     onQuranSettingsClick: () -> Unit,
     onQuranGoalClick: () -> Unit,
     onAppPreferencesClick: () -> Unit,
-    onNotificationSettingsClick: () -> Unit
+    onNotificationSettingsClick: () -> Unit,
+    onCheckForUpdatesClick: () -> Unit = {},
+    isCheckingForUpdates: Boolean = false
 ) {
     // ── Entrance animation ────────────────────────────────────────────────────
     var visible by remember { mutableStateOf(false) }
@@ -168,7 +171,15 @@ fun SettingsScreen(
                         subtitle = BuildConfig.VERSION_NAME,
                         leadingIcon = Icons.Filled.Info,
                         index = 0,
-                        totalItems = 1
+                        totalItems = 2
+                    )
+                    SettingsItem(
+                        title = if (isCheckingForUpdates) "Checking..." else "Check for Updates",
+                        subtitle = "Tap to check for the latest version",
+                        leadingIcon = Icons.Filled.SystemUpdateAlt,
+                        index = 1,
+                        totalItems = 2,
+                        onClick = { if (!isCheckingForUpdates) onCheckForUpdatesClick() }
                     )
                 }
             }
