@@ -75,9 +75,12 @@ fun ReadingScreen(
     val arabicFontStyle by viewModel.arabicFontStyle.collectAsState()
     val translationLang by viewModel.translationLang.collectAsState()
 
+    // ── Favourites & Bookmarks ────────────────────────────────────────────────
+    val favouriteVerses by viewModel.favouriteVerses.collectAsState()
+    val bookmarkedVerses by viewModel.bookmarkedVerses.collectAsState()
+
     val urduFontFamily = remember { FontFamily(Font(R.font.noto_nastaliq_urdu)) }
 
-    // Use passed surahName immediately — fall back to loaded once available
     val displayName = if (surahName.isNotEmpty()) surahName
                       else if (loadedSurahName.isNotEmpty()) loadedSurahName
                       else "Surah $surahId"
@@ -103,13 +106,11 @@ fun ReadingScreen(
         verses.getOrNull(pagerState.currentPage)?.let { viewModel.updateCurrentJuz(it.juz) }
     }
 
-    // Save progress and increment count on every page change (swipe OR button)
     var lastTrackedPage by remember { mutableIntStateOf(-1) }
     LaunchedEffect(pagerState.currentPage, verses) {
         if (trackGoal && verses.isNotEmpty() && pagerState.currentPage != lastTrackedPage) {
             val page = pagerState.currentPage
             if (lastTrackedPage >= 0 && page > lastTrackedPage) {
-                // Moving forward — save new position and count the verse
                 verses.getOrNull(page)?.let {
                     viewModel.saveProgress(currentSurahId, it.verseNumber)
                     viewModel.incrementTodayCount()
@@ -215,9 +216,10 @@ fun ReadingScreen(
                 val scrollState = rememberScrollState()
                 LaunchedEffect(page) { scrollState.scrollTo(0) }
 
-                // Temporary state — will be hooked up later
-                var isFavourite by remember { mutableStateOf(false) }
-                var isBookmarked by remember { mutableStateOf(false) }
+                // ── Derived from ViewModel — persisted across sessions ─────────
+                val verseKey = "${verse.surahId}:${verse.verseNumber}"
+                val isFavourite = verseKey in favouriteVerses
+                val isBookmarked = verseKey in bookmarkedVerses
 
                 Column(
                     modifier = Modifier
@@ -244,12 +246,12 @@ fun ReadingScreen(
                         Spacer(modifier = Modifier.height(20.dp))
                     }
 
-                    // ── VERSE CARD ────────────────────────────────────────
+                    // ── VERSE CARD ────────────────────────────────────────────
                     Column(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
-                        // Top section — header with play, surah info, actions
+                        // Top section — header with verse number and actions
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomStart = 4.dp, bottomEnd = 4.dp),
@@ -263,10 +265,9 @@ fun ReadingScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                // Verse number on the left
+                                // Verse number
                                 Box(
-                                    modifier = Modifier
-                                        .size(48.dp),
+                                    modifier = Modifier.size(48.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
@@ -277,7 +278,7 @@ fun ReadingScreen(
                                     )
                                 }
 
-                                // Play + Favourite + Bookmark on the right
+                                // Play + Favourite + Bookmark
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     IconButton(onClick = { /* TODO: audio */ }) {
                                         Icon(
@@ -287,7 +288,9 @@ fun ReadingScreen(
                                             modifier = Modifier.size(26.dp)
                                         )
                                     }
-                                    IconButton(onClick = { isFavourite = !isFavourite }) {
+                                    IconButton(onClick = {
+                                        viewModel.toggleFavourite(verse.surahId, verse.verseNumber)
+                                    }) {
                                         Icon(
                                             imageVector = if (isFavourite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                                             contentDescription = "Favourite",
@@ -295,7 +298,9 @@ fun ReadingScreen(
                                             modifier = Modifier.size(22.dp)
                                         )
                                     }
-                                    IconButton(onClick = { isBookmarked = !isBookmarked }) {
+                                    IconButton(onClick = {
+                                        viewModel.toggleBookmark(verse.surahId, verse.verseNumber)
+                                    }) {
                                         Icon(
                                             imageVector = if (isBookmarked) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
                                             contentDescription = "Bookmark",
@@ -425,7 +430,6 @@ fun ReaderBottomNavigation(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // ← Pill button
             MorphPillButton(
                 onClick = onPreviousClick,
                 enabled = isPreviousEnabled,
@@ -440,7 +444,6 @@ fun ReaderBottomNavigation(
                 )
             }
 
-            // Done Reading — rounded rectangle middle
             MorphRectButton(
                 onClick = onDoneClick,
                 modifier = Modifier.weight(2f),
@@ -455,7 +458,6 @@ fun ReaderBottomNavigation(
                 )
             }
 
-            // → Pill button
             MorphPillButton(
                 onClick = onNextClick,
                 modifier = Modifier.weight(1f),

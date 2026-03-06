@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -57,6 +58,10 @@ class SettingsManager(private val context: Context) {
         // Dhikr completion tracking (value = date string "yyyy-MM-dd")
         fun dhikrCompletionKey(dhikrId: String, period: String) =
             stringPreferencesKey("dhikr_${dhikrId}_${period}_date")
+
+        // Verse favourites and bookmarks — stored as "surahId:verseNumber" e.g. "2:255"
+        val FAVOURITE_VERSES  = stringSetPreferencesKey("favourite_verses")
+        val BOOKMARKED_VERSES = stringSetPreferencesKey("bookmarked_verses")
     }
 
     // ── Quran display ─────────────────────────────────────────────────────────
@@ -201,6 +206,33 @@ class SettingsManager(private val context: Context) {
         context.dataStore.edit { it[key] = date }
     }
 
+    // ── Verse favourites ──────────────────────────────────────────────────────
+    val favouriteVerses: Flow<Set<String>> = context.dataStore.data.map {
+        it[FAVOURITE_VERSES] ?: emptySet()
+    }
+
+    suspend fun toggleFavouriteVerse(surahId: Int, verseNumber: Int) {
+        val key = "$surahId:$verseNumber"
+        context.dataStore.edit { prefs ->
+            val current = prefs[FAVOURITE_VERSES] ?: emptySet()
+            prefs[FAVOURITE_VERSES] = if (key in current) current - key else current + key
+        }
+    }
+
+    // ── Verse bookmarks ───────────────────────────────────────────────────────
+    val bookmarkedVerses: Flow<Set<String>> = context.dataStore.data.map {
+        it[BOOKMARKED_VERSES] ?: emptySet()
+    }
+
+    suspend fun toggleBookmarkVerse(surahId: Int, verseNumber: Int) {
+        val key = "$surahId:$verseNumber"
+        context.dataStore.edit { prefs ->
+            val current = prefs[BOOKMARKED_VERSES] ?: emptySet()
+            prefs[BOOKMARKED_VERSES] = if (key in current) current - key else current + key
+        }
+    }
+
+    // ── Reset ─────────────────────────────────────────────────────────────────
     suspend fun resetAllData() {
         context.dataStore.edit { prefs ->
             prefs.remove(GOAL_SURAH_ID)

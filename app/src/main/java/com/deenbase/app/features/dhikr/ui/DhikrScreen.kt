@@ -23,8 +23,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.deenbase.app.data.SettingsManager
 import androidx.compose.ui.platform.LocalContext
+import com.deenbase.app.features.tasbih.viewmodel.SubhanallahViewModel
 import java.time.LocalDate
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -49,6 +51,10 @@ fun DhikrScreen(
         radituMorningDone = sm.getDhikrCompletionDate("raditu", "morning") == today
         radituEveningDone = sm.getDhikrCompletionDate("raditu", "evening") == today
     }
+
+    // ── Subhanallah completion state ──────────────────────────────────────────
+    val subhanallahViewModel: SubhanallahViewModel = viewModel()
+    val subhanallahDone by subhanallahViewModel.isComplete.collectAsState()
 
     var visible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { visible = true }
@@ -142,33 +148,13 @@ fun DhikrScreen(
                     verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
                     DhikrSectionLabel("Daily Adhkar")
-                    Card(
-                        onClick = onSubhanallahClick,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(20.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
-                    ) {
-                        ListItem(
-                            headlineContent = {
-                                Text(
-                                    text = "Forgiveness of All Sins",
-                                    fontWeight = FontWeight.SemiBold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                            },
-                            supportingContent = {
-                                Text(
-                                    text = "Subhanallahi wa bihamdihi. x100",
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            },
-                            colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
-                        )
-                    }
+                    DhikrCard(
+                        title = "Forgiveness of All Sins",
+                        subtitle = "Subhanallahi wa bihamdihi. x100",
+                        isDone = subhanallahDone,
+                        topShape = true, bottomShape = true,
+                        onClick = onSubhanallahClick
+                    )
                 }
 
                 // ── TASBIH ────────────────────────────────────────────────────
@@ -184,17 +170,12 @@ fun DhikrScreen(
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
                     ) {
                         Row(
-                            modifier = Modifier.fillMaxWidth().padding(20.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(20.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text("Tasbih Counter", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                            Icon(
-                                imageVector = Icons.Filled.CheckCircle,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(20.dp)
-                            )
                         }
                     }
                 }
@@ -202,7 +183,7 @@ fun DhikrScreen(
                 Spacer(modifier = Modifier.height(100.dp))
             }
 
-            // Top gradient overlay — fades content behind the app bar
+            // Top gradient overlay
             Box(
                 modifier = Modifier
                     .fillMaxWidth()

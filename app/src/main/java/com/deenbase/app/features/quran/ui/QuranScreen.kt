@@ -1,5 +1,7 @@
 package com.deenbase.app.features.quran.ui
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -7,14 +9,18 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material3.*
 import androidx.compose.material3.MaterialTheme.motionScheme
 import androidx.compose.runtime.*
-import androidx.compose.runtime.getValue // Explicitly added to fix delegate error
-import androidx.compose.runtime.collectAsState // Explicitly added to fix flow error
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.Font
@@ -31,21 +37,34 @@ import com.deenbase.app.features.quran.viewmodel.QuranViewModel
 @Composable
 fun QuranScreen(
     viewModel: QuranViewModel = viewModel(),
-    onSurahClick: (Int, String) -> Unit
+    onSurahClick: (Int, String) -> Unit,
+    onSavedClick: () -> Unit = {}
 ) {
     val surahs by viewModel.surahs.collectAsState()
-    // Hoist font creation here — NOT inside each list item
     val surahNamesFont = remember { FontFamily(Font(R.font.surah_names)) }
 
-    // 1. Create the gradient brush from background color to transparent
     val gradientBrush = Brush.verticalGradient(
         colors = listOf(MaterialTheme.colorScheme.background, Color.Transparent)
+    )
+
+    // ── Entrance animation ────────────────────────────────────────────────────
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(surahs) { if (surahs.isNotEmpty()) visible = true }
+
+    val listAlpha by animateFloatAsState(
+        targetValue = if (visible) 1f else 0f,
+        animationSpec = tween(durationMillis = 400, delayMillis = 60),
+        label = "listAlpha"
+    )
+    val listScale by animateFloatAsState(
+        targetValue = if (visible) 1f else 0.97f,
+        animationSpec = tween(durationMillis = 400, delayMillis = 60),
+        label = "listScale"
     )
 
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                // 2. Apply the gradient brush directly to the TopAppBar modifier
                 modifier = Modifier.background(brush = gradientBrush),
                 title = {
                     Text(
@@ -55,15 +74,23 @@ fun QuranScreen(
                     )
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = Color.Transparent, // Gradient handles the background now
+                    containerColor = Color.Transparent,
                     scrolledContainerColor = Color.Transparent
-                )
+                ),
+                actions = {
+                    IconButton(onClick = onSavedClick) {
+                        Icon(
+                            imageVector = Icons.Filled.BookmarkBorder,
+                            contentDescription = "Saved Verses",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
             )
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
         if (surahs.isEmpty()) {
-            // Give the loader padding so it doesn't get stuck under the top bar
             Box(modifier = Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
                 CircularWavyProgressIndicator()
             }
@@ -71,12 +98,11 @@ fun QuranScreen(
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    // 3. REMOVED .padding(innerPadding) so the list draws edge-to-edge behind the top bar
-                    .padding(horizontal = 16.dp),
-                
-                // 4. ADDED contentPadding so the first item naturally starts below the top bar
+                    .padding(horizontal = 16.dp)
+                    .alpha(listAlpha)
+                    .scale(listScale),
                 contentPadding = PaddingValues(
-                    top = innerPadding.calculateTopPadding(), 
+                    top = innerPadding.calculateTopPadding(),
                     bottom = innerPadding.calculateBottomPadding()
                 ),
                 verticalArrangement = Arrangement.spacedBy(2.dp)
@@ -111,11 +137,11 @@ fun SurahItem(
     val bottomRadius = if (index == totalItems - 1) 20.dp else 4.dp
 
     ListItem(
-        headlineContent = { 
-            Text(surah.nameTransliteration, fontWeight = FontWeight.SemiBold) 
+        headlineContent = {
+            Text(surah.nameTransliteration, fontWeight = FontWeight.SemiBold)
         },
-        supportingContent = { 
-            Text("${surah.type.replaceFirstChar { it.uppercase() }} • ${surah.totalVerses} Verses") 
+        supportingContent = {
+            Text("${surah.type.replaceFirstChar { it.uppercase() }} • ${surah.totalVerses} Verses")
         },
         leadingContent = {
             Box(

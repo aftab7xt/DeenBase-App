@@ -57,6 +57,33 @@ class ReadingViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope, SharingStarted.WhileSubscribed(5000), "english"
     )
 
+    // ── Favourites & Bookmarks ────────────────────────────────────────────────
+    val favouriteVerses = settingsManager.favouriteVerses.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet()
+    )
+    val bookmarkedVerses = settingsManager.bookmarkedVerses.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet()
+    )
+
+    fun isFavourite(surahId: Int, verseNumber: Int): Boolean =
+        "$surahId:$verseNumber" in favouriteVerses.value
+
+    fun isBookmarked(surahId: Int, verseNumber: Int): Boolean =
+        "$surahId:$verseNumber" in bookmarkedVerses.value
+
+    fun toggleFavourite(surahId: Int, verseNumber: Int) {
+        viewModelScope.launch {
+            settingsManager.toggleFavouriteVerse(surahId, verseNumber)
+        }
+    }
+
+    fun toggleBookmark(surahId: Int, verseNumber: Int) {
+        viewModelScope.launch {
+            settingsManager.toggleBookmarkVerse(surahId, verseNumber)
+        }
+    }
+
+    // ── Surah loading ─────────────────────────────────────────────────────────
     fun loadSurah(surahId: Int) {
         viewModelScope.launch {
             _isLoading.value = true
