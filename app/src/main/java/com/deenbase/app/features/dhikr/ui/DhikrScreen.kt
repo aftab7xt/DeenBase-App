@@ -19,15 +19,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.deenbase.app.data.SettingsManager
-import androidx.compose.ui.platform.LocalContext
-import com.deenbase.app.features.tasbih.viewmodel.SubhanallahViewModel
 import java.time.LocalDate
+import kotlinx.coroutines.flow.first
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,27 +42,26 @@ fun DhikrScreen(
     var bismillahEveningDone by remember { mutableStateOf(false) }
     var radituMorningDone by remember { mutableStateOf(false) }
     var radituEveningDone by remember { mutableStateOf(false) }
+    var subhanallahDone by remember { mutableStateOf(false) }
 
+    // All completion states read from DataStore — consistent, no cross-ViewModel scope issues
     LaunchedEffect(Unit) {
         bismillahMorningDone = sm.getDhikrCompletionDate("bismillah", "morning") == today
         bismillahEveningDone = sm.getDhikrCompletionDate("bismillah", "evening") == today
-        radituMorningDone = sm.getDhikrCompletionDate("raditu", "morning") == today
-        radituEveningDone = sm.getDhikrCompletionDate("raditu", "evening") == today
+        radituMorningDone   = sm.getDhikrCompletionDate("raditu", "morning") == today
+        radituEveningDone   = sm.getDhikrCompletionDate("raditu", "evening") == today
+        subhanallahDone     = sm.subhanallahDate.first() == today && sm.subhanallahCount.first() >= 100
     }
-
-    // ── Subhanallah completion state ──────────────────────────────────────────
-    val subhanallahViewModel: SubhanallahViewModel = viewModel()
-    val subhanallahDone by subhanallahViewModel.isComplete.collectAsState()
 
     var visible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { visible = true }
 
-    val morningAlpha by animateFloatAsState(targetValue = if (visible) 1f else 0f, animationSpec = tween(400, delayMillis = 80), label = "morningAlpha")
-    val morningScale by animateFloatAsState(targetValue = if (visible) 1f else 0.96f, animationSpec = tween(400, delayMillis = 80), label = "morningScale")
+    val morningAlpha by animateFloatAsState(targetValue = if (visible) 1f else 0f, animationSpec = tween(400, delayMillis = 80),  label = "morningAlpha")
+    val morningScale by animateFloatAsState(targetValue = if (visible) 1f else 0.96f, animationSpec = tween(400, delayMillis = 80),  label = "morningScale")
     val eveningAlpha by animateFloatAsState(targetValue = if (visible) 1f else 0f, animationSpec = tween(400, delayMillis = 180), label = "eveningAlpha")
     val eveningScale by animateFloatAsState(targetValue = if (visible) 1f else 0.96f, animationSpec = tween(400, delayMillis = 180), label = "eveningScale")
-    val tasbihAlpha by animateFloatAsState(targetValue = if (visible) 1f else 0f, animationSpec = tween(400, delayMillis = 280), label = "tasbihAlpha")
-    val tasbihScale by animateFloatAsState(targetValue = if (visible) 1f else 0.96f, animationSpec = tween(400, delayMillis = 280), label = "tasbihScale")
+    val tasbihAlpha  by animateFloatAsState(targetValue = if (visible) 1f else 0f, animationSpec = tween(400, delayMillis = 280), label = "tasbihAlpha")
+    val tasbihScale  by animateFloatAsState(targetValue = if (visible) 1f else 0.96f, animationSpec = tween(400, delayMillis = 280), label = "tasbihScale")
 
     val gradientBrush = Brush.verticalGradient(
         colors = listOf(MaterialTheme.colorScheme.background, Color.Transparent)
@@ -73,13 +70,7 @@ fun DhikrScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        "Dhikr",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                },
+                title = { Text("Dhikr", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold) },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = Color.Transparent,
                     scrolledContainerColor = Color.Transparent
@@ -98,70 +89,24 @@ fun DhikrScreen(
             ) {
                 Spacer(modifier = Modifier.height(innerPadding.calculateTopPadding() + 4.dp))
 
-                // ── MORNING ──────────────────────────────────────────────────
-                Column(
-                    modifier = Modifier.alpha(morningAlpha).scale(morningScale),
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
+                Column(modifier = Modifier.alpha(morningAlpha).scale(morningScale), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     DhikrSectionLabel("Morning Adhkar")
-                    DhikrCard(
-                        title = "Protection from All Harm",
-                        subtitle = "Bismillahil-ladhi la yadurru... x3",
-                        isDone = bismillahMorningDone,
-                        topShape = true, bottomShape = false,
-                        onClick = { onDhikrClick("bismillah", "morning") }
-                    )
-                    DhikrCard(
-                        title = "Contentment with Allah",
-                        subtitle = "Raditu billahi Rabban, wa bil-Islami... x3",
-                        isDone = radituMorningDone,
-                        topShape = false, bottomShape = true,
-                        onClick = { onDhikrClick("raditu", "morning") }
-                    )
+                    DhikrCard("Protection from All Harm", "Bismillahil-ladhi la yadurru... x3", bismillahMorningDone, topShape = true,  bottomShape = false) { onDhikrClick("bismillah", "morning") }
+                    DhikrCard("Contentment with Allah",   "Raditu billahi Rabban, wa bil-Islami... x3",  radituMorningDone,   topShape = false, bottomShape = true)  { onDhikrClick("raditu",    "morning") }
                 }
 
-                // ── EVENING ──────────────────────────────────────────────────
-                Column(
-                    modifier = Modifier.alpha(eveningAlpha).scale(eveningScale),
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
+                Column(modifier = Modifier.alpha(eveningAlpha).scale(eveningScale), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     DhikrSectionLabel("Evening Adhkar")
-                    DhikrCard(
-                        title = "Protection from All Harm",
-                        subtitle = "Bismillahil-ladhi la yadurru... x3",
-                        isDone = bismillahEveningDone,
-                        topShape = true, bottomShape = false,
-                        onClick = { onDhikrClick("bismillah", "evening") }
-                    )
-                    DhikrCard(
-                        title = "Contentment with Allah",
-                        subtitle = "Raditu billahi Rabban, wa bil-Islami... x3",
-                        isDone = radituEveningDone,
-                        topShape = false, bottomShape = true,
-                        onClick = { onDhikrClick("raditu", "evening") }
-                    )
+                    DhikrCard("Protection from All Harm", "Bismillahil-ladhi la yadurru... x3", bismillahEveningDone, topShape = true,  bottomShape = false) { onDhikrClick("bismillah", "evening") }
+                    DhikrCard("Contentment with Allah",   "Raditu billahi Rabban, wa bil-Islami... x3",  radituEveningDone,   topShape = false, bottomShape = true)  { onDhikrClick("raditu",    "evening") }
                 }
 
-                // ── DAILY ADHKAR ──────────────────────────────────────────────
-                Column(
-                    modifier = Modifier.alpha(tasbihAlpha).scale(tasbihScale),
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
+                Column(modifier = Modifier.alpha(tasbihAlpha).scale(tasbihScale), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     DhikrSectionLabel("Daily Adhkar")
-                    DhikrCard(
-                        title = "Forgiveness of All Sins",
-                        subtitle = "Subhanallahi wa bihamdihi. x100",
-                        isDone = subhanallahDone,
-                        topShape = true, bottomShape = true,
-                        onClick = onSubhanallahClick
-                    )
+                    DhikrCard("Forgiveness of All Sins", "Subhanallahi wa bihamdihi. x100", subhanallahDone, topShape = true, bottomShape = true, onClick = onSubhanallahClick)
                 }
 
-                // ── TASBIH ────────────────────────────────────────────────────
-                Column(
-                    modifier = Modifier.alpha(tasbihAlpha).scale(tasbihScale),
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
+                Column(modifier = Modifier.alpha(tasbihAlpha).scale(tasbihScale), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     DhikrSectionLabel("Tasbih")
                     Card(
                         onClick = onTasbihClick,
@@ -169,12 +114,7 @@ fun DhikrScreen(
                         shape = RoundedCornerShape(20.dp),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
                     ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(20.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
+                        Row(modifier = Modifier.fillMaxWidth().padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
                             Text("Tasbih Counter", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                         }
                     }
@@ -183,7 +123,6 @@ fun DhikrScreen(
                 Spacer(modifier = Modifier.height(100.dp))
             }
 
-            // Top gradient overlay
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -197,56 +136,28 @@ fun DhikrScreen(
 
 @Composable
 private fun DhikrSectionLabel(title: String) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 8.dp, top = 8.dp, bottom = 8.dp)
-    )
+    Text(text = title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(start = 8.dp, top = 8.dp, bottom = 8.dp))
 }
 
 @Composable
-private fun DhikrCard(
-    title: String,
-    subtitle: String,
-    isDone: Boolean,
-    topShape: Boolean,
-    bottomShape: Boolean,
-    onClick: () -> Unit
-) {
-    val topRadius = if (topShape) 20.dp else 4.dp
-    val bottomRadius = if (bottomShape) 20.dp else 4.dp
-
+private fun DhikrCard(title: String, subtitle: String, isDone: Boolean, topShape: Boolean, bottomShape: Boolean, onClick: () -> Unit) {
     ListItem(
         headlineContent = {
-            Text(
-                text = title,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                color = if (isDone) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-            )
+            Text(title, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                color = if (isDone) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
         },
         supportingContent = {
-            Text(
-                text = subtitle,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Text(subtitle, maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurfaceVariant)
         },
         trailingContent = {
-            if (isDone) {
-                Icon(
-                    imageVector = Icons.Filled.CheckCircle,
-                    contentDescription = "Done",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(22.dp)
-                )
-            }
+            if (isDone) Icon(Icons.Filled.CheckCircle, contentDescription = "Done", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
         },
         modifier = Modifier
-            .clip(RoundedCornerShape(topStart = topRadius, topEnd = topRadius, bottomStart = bottomRadius, bottomEnd = bottomRadius))
+            .clip(RoundedCornerShape(
+                topStart = if (topShape) 20.dp else 4.dp, topEnd = if (topShape) 20.dp else 4.dp,
+                bottomStart = if (bottomShape) 20.dp else 4.dp, bottomEnd = if (bottomShape) 20.dp else 4.dp
+            ))
             .clickable(onClick = onClick),
         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
     )

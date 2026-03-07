@@ -26,12 +26,13 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.deenbase.app.R
 import com.deenbase.app.features.dhikr.viewmodel.DhikrViewModel
+import com.deenbase.app.ui.LocalHapticsEnabled
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 data class DhikrContent(
     val id: String,
-    val period: String, // "morning" | "evening"
+    val period: String,
     val arabicText: String,
     val transliteration: String,
     val translation: String,
@@ -54,6 +55,7 @@ fun DhikrDetailScreen(
     viewModel: DhikrViewModel = viewModel()
 ) {
     val haptic = LocalHapticFeedback.current
+    val hapticsEnabled = LocalHapticsEnabled.current
     val scope = rememberCoroutineScope()
 
     val count by viewModel.count.collectAsState()
@@ -96,7 +98,6 @@ fun DhikrDetailScreen(
         label = "Progress"
     )
 
-    // Completion dialog
     if (showCompletionDialog) {
         AlertDialog(
             onDismissRequest = {},
@@ -173,7 +174,6 @@ fun DhikrDetailScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceEvenly
         ) {
-            // Progress ring + count
             Box(contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(
                     progress = { animatedProgress },
@@ -204,7 +204,6 @@ fun DhikrDetailScreen(
                 }
             }
 
-            // Arabic text
             Text(
                 text = content.arabicText,
                 fontFamily = arabicFont,
@@ -214,12 +213,11 @@ fun DhikrDetailScreen(
                 textAlign = TextAlign.Center
             )
 
-            // TAP button
             FilledTonalButton(
                 onClick = {
                     if (!isComplete) {
                         viewModel.increment()
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        if (hapticsEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         scope.launch {
                             forceSquishTap = true
                             delay(90)
@@ -254,7 +252,6 @@ fun DhikrDetailScreen(
                 )
             }
 
-            // Hadith cards
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(2.dp)

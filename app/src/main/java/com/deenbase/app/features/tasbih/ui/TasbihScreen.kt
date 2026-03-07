@@ -19,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.deenbase.app.features.tasbih.viewmodel.TasbihViewModel
+import com.deenbase.app.ui.LocalHapticsEnabled
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -26,10 +27,10 @@ import kotlinx.coroutines.launch
 @Composable
 fun TasbihScreen(viewModel: TasbihViewModel) {
     val haptic = LocalHapticFeedback.current
+    val hapticsEnabled = LocalHapticsEnabled.current
     val count = viewModel.count.value
     val scope = rememberCoroutineScope()
 
-    // --- TAP BUTTON STATE ---
     val tapInteractionSource = remember { MutableInteractionSource() }
     val isTapPhysicallyPressed by tapInteractionSource.collectIsPressedAsState()
     var forceSquishTap by remember { mutableStateOf(false) }
@@ -40,14 +41,12 @@ fun TasbihScreen(viewModel: TasbihViewModel) {
         animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
         label = "TapButtonScale"
     )
-
     val tapCornerRadius by animateDpAsState(
         targetValue = if (isTapSquished) 24.dp else 75.dp,
         animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
         label = "TapButtonShape"
     )
 
-    // --- RESET BUTTON STATE ---
     val resetInteractionSource = remember { MutableInteractionSource() }
     val isResetPhysicallyPressed by resetInteractionSource.collectIsPressedAsState()
     var forceSquishReset by remember { mutableStateOf(false) }
@@ -58,9 +57,7 @@ fun TasbihScreen(viewModel: TasbihViewModel) {
         animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
         label = "ResetButtonScale"
     )
-
     val resetCornerRadius by animateDpAsState(
-        // CHANGED: 24.dp is exactly half of the 48.dp height, making a perfect pill without rendering glitches.
         targetValue = if (isResetSquished) 12.dp else 24.dp,
         animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
         label = "ResetButtonShape"
@@ -80,22 +77,20 @@ fun TasbihScreen(viewModel: TasbihViewModel) {
             Text(
                 text = count.toString(),
                 style = MaterialTheme.typography.displayLarge.copy(
-                    fontSize = 160.sp, 
+                    fontSize = 160.sp,
                     lineHeight = 160.sp,
                     fontWeight = FontWeight.Black,
-                    fontFeatureSettings = "tnum" 
+                    fontFeatureSettings = "tnum"
                 ),
                 color = MaterialTheme.colorScheme.primary
             )
 
             Spacer(modifier = Modifier.height(50.dp))
 
-            // THE TAP BUTTON
             LargeFloatingActionButton(
                 onClick = {
                     viewModel.increment()
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    
+                    if (hapticsEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     scope.launch {
                         forceSquishTap = true
                         delay(90)
@@ -106,12 +101,12 @@ fun TasbihScreen(viewModel: TasbihViewModel) {
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                 modifier = Modifier
-                    .size(150.dp) 
-                    .scale(tapScale), 
+                    .size(150.dp)
+                    .scale(tapScale),
                 shape = RoundedCornerShape(tapCornerRadius)
             ) {
                 Text(
-                    "TAP", 
+                    "TAP",
                     style = MaterialTheme.typography.headlineMedium.copy(
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 2.sp
@@ -121,12 +116,10 @@ fun TasbihScreen(viewModel: TasbihViewModel) {
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // THE RESET BUTTON
             FilledTonalButton(
-                onClick = { 
+                onClick = {
                     viewModel.reset()
-                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    
+                    if (hapticsEnabled) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     scope.launch {
                         forceSquishReset = true
                         delay(90)
@@ -135,19 +128,18 @@ fun TasbihScreen(viewModel: TasbihViewModel) {
                 },
                 interactionSource = resetInteractionSource,
                 shape = RoundedCornerShape(resetCornerRadius),
-                contentPadding = PaddingValues(0.dp), // CHANGED: Removes internal shifting padding
+                contentPadding = PaddingValues(0.dp),
                 modifier = Modifier
-                    .width(120.dp) // CHANGED: Fixed width
-                    .height(48.dp) // CHANGED: Fixed height
+                    .width(120.dp)
+                    .height(48.dp)
                     .scale(resetScale)
             ) {
                 Text(
-                    "RESET", 
+                    "RESET",
                     style = MaterialTheme.typography.labelLarge.copy(letterSpacing = 1.sp)
-                    // CHANGED: Removed the padding modifier on the text since the button size is locked
                 )
             }
-            
+
             Spacer(modifier = Modifier.height(100.dp))
         }
     }

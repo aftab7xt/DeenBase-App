@@ -66,6 +66,7 @@ import com.deenbase.app.features.onboarding.ui.OnboardingScreen
 import com.deenbase.app.features.home.ui.HomeScreen
 import com.deenbase.app.features.quran.ui.QuranScreen
 import com.deenbase.app.features.quran.ui.SavedVersesScreen
+import com.deenbase.app.features.settings.ui.AboutScreen
 import com.deenbase.app.features.settings.ui.AppPreferencesScreen
 import com.deenbase.app.features.settings.ui.NotificationSettingsScreen
 import com.deenbase.app.features.settings.ui.QuranGoalScreen
@@ -75,13 +76,14 @@ import com.deenbase.app.features.tasbih.ui.TasbihScreen
 import com.deenbase.app.features.tasbih.ui.SubhanallahScreen
 import com.deenbase.app.features.tasbih.viewmodel.TasbihViewModel
 import com.deenbase.app.ui.theme.DeenBaseTheme
+import com.deenbase.app.ui.LocalHapticsEnabled
 import com.deenbase.app.data.SettingsManager
 import com.deenbase.app.update.UpdateViewModel
 
 sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
-    object Home : Screen("home", "Home", Icons.Filled.Home)
-    object Quran : Screen("quran", "Quran", Icons.AutoMirrored.Filled.MenuBook)
-    object Dhikr : Screen("dhikr", "Dhikr", Icons.Filled.HistoryEdu)
+    object Home     : Screen("home",     "Home",     Icons.Filled.Home)
+    object Quran    : Screen("quran",    "Quran",    Icons.AutoMirrored.Filled.MenuBook)
+    object Dhikr    : Screen("dhikr",    "Dhikr",    Icons.Filled.HistoryEdu)
     object Settings : Screen("settings", "Settings", Icons.Filled.Settings)
 }
 
@@ -96,387 +98,375 @@ class MainActivity : ComponentActivity() {
         setContent {
             val settingsManager = remember { SettingsManager(applicationContext) }
             val themeMode by settingsManager.themeMode.collectAsStateWithLifecycle(initialValue = "system")
+            val oledMode by settingsManager.oledMode.collectAsStateWithLifecycle(initialValue = false)
+            val hapticsEnabled by settingsManager.hapticsEnabled.collectAsStateWithLifecycle(initialValue = true)
             val darkTheme = when (themeMode) {
-                "dark" -> true
+                "dark"  -> true
                 "light" -> false
-                else -> isSystemInDarkTheme()
+                else    -> isSystemInDarkTheme()
             }
-            DeenBaseTheme(darkTheme = darkTheme) {
-                val view = LocalView.current
-                SideEffect {
-                    val window = (view.context as ComponentActivity).window
-                    WindowInsetsControllerCompat(window, view).isAppearanceLightStatusBars = !darkTheme
-                    WindowInsetsControllerCompat(window, view).isAppearanceLightNavigationBars = !darkTheme
-                }
+            CompositionLocalProvider(LocalHapticsEnabled provides hapticsEnabled) {
+                DeenBaseTheme(darkTheme = darkTheme, oledMode = oledMode) {
+                    val view = LocalView.current
+                    SideEffect {
+                        val window = (view.context as ComponentActivity).window
+                        WindowInsetsControllerCompat(window, view).isAppearanceLightStatusBars    = !darkTheme
+                        WindowInsetsControllerCompat(window, view).isAppearanceLightNavigationBars = !darkTheme
+                    }
 
-                // ── Update check ──────────────────────────────────────────────
-                val updateViewModel: UpdateViewModel = viewModel()
-                val updateState by updateViewModel.state.collectAsStateWithLifecycle()
-                val context = LocalContext.current
+                    // ── Update check ──────────────────────────────────────────
+                    val updateViewModel: UpdateViewModel = viewModel()
+                    val updateState by updateViewModel.state.collectAsStateWithLifecycle()
+                    val context = LocalContext.current
 
-                if (updateState.showDialog) {
-                    AlertDialog(
-                        onDismissRequest = { updateViewModel.dismissDialog() },
-                        title = { Text("Update Available") },
-                        text = { Text("Version ${updateState.latestVersion} is ready. Update now for the latest features and fixes.") },
-                        confirmButton = {
-                            Button(onClick = { updateViewModel.startDownload(context) }) {
-                                Text("Update Now")
-                            }
-                        },
-                        dismissButton = {
-                            TextButton(onClick = { updateViewModel.dismissDialog() }) {
-                                Text("Remind Me Later")
-                            }
-                        }
-                    )
-                }
-
-                if (updateState.noUpdateFound) {
-                    AlertDialog(
-                        onDismissRequest = { updateViewModel.dismissNoUpdate() },
-                        title = { Text("You're up to date") },
-                        text = { Text("DeenBase ${BuildConfig.VERSION_NAME} is the latest version.") },
-                        confirmButton = {
-                            Button(onClick = { updateViewModel.dismissNoUpdate() }) {
-                                Text("OK")
-                            }
-                        }
-                    )
-                }
-
-                val navController = rememberNavController()
-                val screens = listOf(Screen.Home, Screen.Quran, Screen.Dhikr, Screen.Settings)
-
-                // ── Onboarding gate ───────────────────────────────────────────
-                val onboardingDone by settingsManager.onboardingDone
-                    .collectAsStateWithLifecycle(initialValue = null)
-
-                when (onboardingDone) {
-                    null -> {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(MaterialTheme.colorScheme.background)
+                    if (updateState.showDialog) {
+                        AlertDialog(
+                            onDismissRequest = { updateViewModel.dismissDialog() },
+                            title = { Text("Update Available") },
+                            text  = { Text("Version ${updateState.latestVersion} is ready. Update now for the latest features and fixes.") },
+                            confirmButton = { Button(onClick = { updateViewModel.startDownload(context) }) { Text("Update Now") } },
+                            dismissButton = { TextButton(onClick = { updateViewModel.dismissDialog() }) { Text("Remind Me Later") } }
                         )
                     }
-                    false -> {
-                        OnboardingScreen(onFinish = { /* recompose handles transition */ })
-                    }
-                    else -> {
 
-                LaunchedEffect(navigateTo) {
-                    when (navigateTo) {
-                        "goal_quran" -> {
-                            val sm = SettingsManager(applicationContext)
-                            val surahId = sm.goalSurahId.first()
-                            val verse = sm.goalVerse.first()
-                            navController.navigate("goal_surah/$surahId/$verse")
+                    if (updateState.noUpdateFound) {
+                        AlertDialog(
+                            onDismissRequest = { updateViewModel.dismissNoUpdate() },
+                            title = { Text("You're up to date") },
+                            text  = { Text("DeenBase ${BuildConfig.VERSION_NAME} is the latest version.") },
+                            confirmButton = { Button(onClick = { updateViewModel.dismissNoUpdate() }) { Text("OK") } }
+                        )
+                    }
+
+                    val navController = rememberNavController()
+                    val screens = listOf(Screen.Home, Screen.Quran, Screen.Dhikr, Screen.Settings)
+
+                    // ── Onboarding gate ───────────────────────────────────────
+                    val onboardingDone by settingsManager.onboardingDone
+                        .collectAsStateWithLifecycle(initialValue = null)
+
+                    when (onboardingDone) {
+                        null -> {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(MaterialTheme.colorScheme.background)
+                            )
                         }
-                        "subhanallah" -> navController.navigate("subhanallah")
-                        "dhikr" -> navController.navigate("dhikr")
+                        false -> {
+                            OnboardingScreen(onFinish = { /* recompose handles transition */ })
+                        }
+                        else -> {
+
+                    LaunchedEffect(navigateTo) {
+                        when (navigateTo) {
+                            "goal_quran" -> {
+                                val sm = SettingsManager(applicationContext)
+                                val surahId = sm.goalSurahId.first()
+                                val verse   = sm.goalVerse.first()
+                                navController.navigate("goal_surah/$surahId/$verse")
+                            }
+                            "subhanallah" -> navController.navigate("subhanallah")
+                            "dhikr"       -> navController.navigate("dhikr")
+                        }
                     }
-                }
 
-                val navBackStackEntry by navController.currentBackStackEntryAsState()
-                val currentRoute = navBackStackEntry?.destination?.route
+                    val navBackStackEntry by navController.currentBackStackEntryAsState()
+                    val currentRoute = navBackStackEntry?.destination?.route
 
-                var immediateRoute by remember { mutableStateOf(currentRoute) }
-                DisposableEffect(navController) {
-                    val listener = NavController.OnDestinationChangedListener { _, destination, _ ->
-                        immediateRoute = destination.route
+                    var immediateRoute by remember { mutableStateOf(currentRoute) }
+                    DisposableEffect(navController) {
+                        val listener = NavController.OnDestinationChangedListener { _, destination, _ ->
+                            immediateRoute = destination.route
+                        }
+                        navController.addOnDestinationChangedListener(listener)
+                        onDispose { navController.removeOnDestinationChangedListener(listener) }
                     }
-                    navController.addOnDestinationChangedListener(listener)
-                    onDispose { navController.removeOnDestinationChangedListener(listener) }
-                }
 
-                val isBottomBarVisible = currentRoute?.startsWith("browse_surah") != true &&
-                    currentRoute?.startsWith("goal_surah") != true &&
-                    currentRoute?.startsWith("dhikr_detail") != true &&
-                    currentRoute != "quran_settings" &&
-                    currentRoute != "quran_goal" &&
-                    currentRoute != "app_preferences" &&
-                    currentRoute != "notification_settings" &&
-                    currentRoute != "tasbih" &&
-                    currentRoute != "subhanallah" &&
-                    currentRoute != "hadith" &&
-                    currentRoute != "hadith_chapters" &&
-                    currentRoute != "hadith_list" &&
-                    currentRoute != "hadith_detail" &&
-                    currentRoute != "hadith_search" &&
-                    currentRoute != "saved_verses"
+                    val isBottomBarVisible = currentRoute?.startsWith("browse_surah") != true &&
+                        currentRoute?.startsWith("goal_surah")   != true &&
+                        currentRoute?.startsWith("dhikr_detail") != true &&
+                        currentRoute != "quran_settings" &&
+                        currentRoute != "quran_goal" &&
+                        currentRoute != "app_preferences" &&
+                        currentRoute != "notification_settings" &&
+                        currentRoute != "tasbih" &&
+                        currentRoute != "subhanallah" &&
+                        currentRoute != "hadith" &&
+                        currentRoute != "hadith_chapters" &&
+                        currentRoute != "hadith_list" &&
+                        currentRoute != "hadith_detail" &&
+                        currentRoute != "hadith_search" &&
+                        currentRoute != "saved_verses" &&
+                        currentRoute != "about"
 
-                Scaffold(
-                    modifier = Modifier.fillMaxSize(),
-                ) { innerPadding ->
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        NavHost(
-                            navController = navController,
-                            startDestination = Screen.Home.route,
-                            modifier = Modifier.fillMaxSize()
-                        ) {
-                            composable(Screen.Home.route) {
-                                HomeScreen(
-                                    onReadQuranClick = { surahId, verse -> navController.navigate("goal_surah/$surahId/$verse") },
-                                    onHadithClick = { navController.navigate("hadith") }
-                                )
-                            }
-                            composable(
-                                route = "tasbih",
-                                enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
-                                popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
+                    Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            NavHost(
+                                navController = navController,
+                                startDestination = Screen.Home.route,
+                                modifier = Modifier.fillMaxSize()
                             ) {
-                                val tasbihViewModel: TasbihViewModel = viewModel()
-                                TasbihScreen(viewModel = tasbihViewModel)
-                            }
-                            composable(
-                                route = "subhanallah",
-                                enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
-                                popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
-                            ) {
-                                SubhanallahScreen(
-                                    onNavigateBack = { navController.popBackStack() }
-                                )
-                            }
-                            composable(Screen.Quran.route) {
-                                QuranScreen(
-                                    onSurahClick = { surahId, surahName ->
-                                        navController.navigate("browse_surah/$surahId/${surahName.replace(" ", "_")}")
-                                    },
-                                    onSavedClick = { navController.navigate("saved_verses") }
-                                )
-                            }
-                            composable(
-                                route = "saved_verses",
-                                enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
-                                popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
-                            ) {
-                                SavedVersesScreen(
-                                    onNavigateBack = { navController.popBackStack() },
-                                    onVerseClick = { surahId, verseNumber, surahName ->
-                                        navController.navigate("browse_surah/$surahId/${surahName.replace(" ", "_")}")
-                                    }
-                                )
-                            }
-                            composable(
-                                route = "browse_surah/{surahId}/{surahName}",
-                                enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
-                                popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
-                            ) { backStackEntry ->
-                                val surahId = backStackEntry.arguments?.getString("surahId")?.toIntOrNull() ?: 1
-                                val surahName = backStackEntry.arguments?.getString("surahName")?.replace("_", " ") ?: ""
-                                com.deenbase.app.features.quran.ui.ReadingScreen(
-                                    surahId = surahId,
-                                    surahName = surahName,
-                                    startVerse = 1,
-                                    trackGoal = false,
-                                    onNavigateBack = { navController.popBackStack() }
-                                )
-                            }
-                            composable(
-                                route = "goal_surah/{surahId}/{startVerse}",
-                                enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
-                                popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
-                            ) { backStackEntry ->
-                                val surahId = backStackEntry.arguments?.getString("surahId")?.toIntOrNull() ?: 1
-                                val startVerse = backStackEntry.arguments?.getString("startVerse")?.toIntOrNull() ?: 1
-                                com.deenbase.app.features.quran.ui.ReadingScreen(
-                                    surahId = surahId,
-                                    startVerse = startVerse,
-                                    trackGoal = true,
-                                    onNavigateBack = { navController.popBackStack() },
-                                    onNextSurah = { nextId ->
-                                        navController.popBackStack()
-                                        navController.navigate("goal_surah/$nextId/1")
-                                    }
-                                )
-                            }
-                            composable(Screen.Dhikr.route) {
-                                DhikrScreen(
-                                    onDhikrClick = { dhikrId, period ->
-                                        navController.navigate("dhikr_detail/$dhikrId/$period")
-                                    },
-                                    onSubhanallahClick = { navController.navigate("subhanallah") },
-                                    onTasbihClick = { navController.navigate("tasbih") }
-                                )
-                            }
-                            composable(
-                                route = "dhikr_detail/{dhikrId}/{period}",
-                                enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
-                                popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
-                            ) { backStackEntry ->
-                                val dhikrId = backStackEntry.arguments?.getString("dhikrId") ?: "bismillah"
-                                val period = backStackEntry.arguments?.getString("period") ?: "morning"
-                                val content = when (dhikrId) {
-                                    "bismillah" -> getBismillahContent(period)
-                                    "raditu" -> getRadituContent(period)
-                                    else -> getBismillahContent(period)
+                                composable(Screen.Home.route) {
+                                    HomeScreen(
+                                        onReadQuranClick = { surahId, verse -> navController.navigate("goal_surah/$surahId/$verse") },
+                                        onHadithClick = { navController.navigate("hadith") }
+                                    )
                                 }
-                                DhikrDetailScreen(
-                                    content = content,
-                                    onNavigateBack = { navController.popBackStack() }
-                                )
-                            }
-                            composable(Screen.Settings.route) {
-                                SettingsScreen(
-                                    onNavigateBack = { navController.popBackStack() },
-                                    onQuranSettingsClick = { navController.navigate("quran_settings") },
-                                    onQuranGoalClick = { navController.navigate("quran_goal") },
-                                    onAppPreferencesClick = { navController.navigate("app_preferences") },
-                                    onNotificationSettingsClick = { navController.navigate("notification_settings") },
-                                    onCheckForUpdatesClick = { updateViewModel.checkForUpdate(manual = true) },
-                                    isCheckingForUpdates = updateState.isChecking
-                                )
-                            }
-                            composable(
-                                route = "app_preferences",
-                                enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
-                                popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
-                            ) {
-                                AppPreferencesScreen(
-                                    onNavigateBack = { navController.popBackStack() }
-                                )
-                            }
-                            composable(
-                                route = "quran_settings",
-                                enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
-                                popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
-                            ) {
-                                QuranSettingsScreen(
-                                    onNavigateBack = { navController.popBackStack() }
-                                )
-                            }
-                            composable(
-                                route = "quran_goal",
-                                enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
-                                popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
-                            ) {
-                                QuranGoalScreen(onNavigateBack = { navController.popBackStack() })
-                            }
-                            composable(
-                                route = "notification_settings",
-                                enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
-                                popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
-                            ) {
-                                NotificationSettingsScreen(
-                                    onNavigateBack = { navController.popBackStack() }
-                                )
-                            }
-                            composable(
-                                route = "hadith",
-                                enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
-                                exitTransition = { slideOutHorizontally { -it } + fadeOut(tween(300)) },
-                                popEnterTransition = { slideInHorizontally { -it } + fadeIn(tween(300)) },
-                                popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
-                            ) {
-                                val hadithViewModel: HadithViewModel = viewModel()
-                                HadithScreen(
-                                    onNavigateBack = { navController.popBackStack() },
-                                    onBookClick = { book ->
-                                        hadithViewModel.selectBook(book)
-                                        navController.navigate("hadith_chapters")
-                                    },
-                                    onSearchClick = { navController.navigate("hadith_search") },
-                                    viewModel = hadithViewModel
-                                )
-                            }
-                            composable(
-                                route = "hadith_chapters",
-                                enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
-                                exitTransition = { slideOutHorizontally { -it } + fadeOut(tween(300)) },
-                                popEnterTransition = { slideInHorizontally { -it } + fadeIn(tween(300)) },
-                                popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
-                            ) {
-                                val hadithViewModel: HadithViewModel = viewModel(
-                                    viewModelStoreOwner = navController.getBackStackEntry("hadith")
-                                )
-                                ChaptersScreen(
-                                    onNavigateBack = { navController.popBackStack() },
-                                    onChapterClick = { chapter ->
-                                        hadithViewModel.selectChapter(chapter)
-                                        navController.navigate("hadith_list")
-                                    },
-                                    viewModel = hadithViewModel
-                                )
-                            }
-                            composable(
-                                route = "hadith_list",
-                                enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
-                                exitTransition = { slideOutHorizontally { -it } + fadeOut(tween(300)) },
-                                popEnterTransition = { slideInHorizontally { -it } + fadeIn(tween(300)) },
-                                popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
-                            ) {
-                                val hadithViewModel: HadithViewModel = viewModel(
-                                    viewModelStoreOwner = navController.getBackStackEntry("hadith")
-                                )
-                                HadithListScreen(
-                                    onNavigateBack = { navController.popBackStack() },
-                                    onHadithClick = { hadith ->
-                                        hadithViewModel.selectHadith(hadith)
-                                        navController.navigate("hadith_detail")
-                                    },
-                                    viewModel = hadithViewModel
-                                )
-                            }
-                            composable(
-                                route = "hadith_search",
-                                enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
-                                exitTransition = { slideOutHorizontally { -it } + fadeOut(tween(300)) },
-                                popEnterTransition = { slideInHorizontally { -it } + fadeIn(tween(300)) },
-                                popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
-                            ) {
-                                val hadithViewModel: HadithViewModel = viewModel(
-                                    viewModelStoreOwner = navController.getBackStackEntry("hadith")
-                                )
-                                HadithSearchScreen(
-                                    onNavigateBack = { navController.popBackStack() },
-                                    onHadithClick = { hadith ->
-                                        hadithViewModel.selectHadith(hadith)
-                                        navController.navigate("hadith_detail")
-                                    },
-                                    viewModel = hadithViewModel
-                                )
-                            }
-                            composable(
-                                route = "hadith_detail",
-                                enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
-                                exitTransition = { slideOutHorizontally { -it } + fadeOut(tween(300)) },
-                                popEnterTransition = { slideInHorizontally { -it } + fadeIn(tween(300)) },
-                                popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
-                            ) {
-                                val hadithViewModel: HadithViewModel = viewModel(
-                                    viewModelStoreOwner = navController.getBackStackEntry("hadith")
-                                )
-                                val selectedHadith = hadithViewModel.selectedHadith.collectAsState().value
-                                selectedHadith?.let {
-                                    HadithDetailScreen(
-                                        hadith = it,
+                                composable(
+                                    route = "tasbih",
+                                    enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
+                                    popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
+                                ) {
+                                    val tasbihViewModel: TasbihViewModel = viewModel()
+                                    TasbihScreen(viewModel = tasbihViewModel)
+                                }
+                                composable(
+                                    route = "subhanallah",
+                                    enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
+                                    popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
+                                ) {
+                                    SubhanallahScreen(onNavigateBack = { navController.popBackStack() })
+                                }
+                                composable(Screen.Quran.route) {
+                                    QuranScreen(
+                                        onSurahClick = { surahId, surahName ->
+                                            navController.navigate("browse_surah/$surahId/${surahName.replace(" ", "_")}")
+                                        },
+                                        onSavedClick = { navController.navigate("saved_verses") }
+                                    )
+                                }
+                                composable(
+                                    route = "saved_verses",
+                                    enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
+                                    popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
+                                ) {
+                                    SavedVersesScreen(
+                                        onNavigateBack = { navController.popBackStack() },
+                                        onVerseClick = { surahId, verseNumber, surahName ->
+                                            navController.navigate("browse_surah/$surahId/${surahName.replace(" ", "_")}")
+                                        }
+                                    )
+                                }
+                                composable(
+                                    route = "browse_surah/{surahId}/{surahName}",
+                                    enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
+                                    popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
+                                ) { backStackEntry ->
+                                    val surahId   = backStackEntry.arguments?.getString("surahId")?.toIntOrNull() ?: 1
+                                    val surahName = backStackEntry.arguments?.getString("surahName")?.replace("_", " ") ?: ""
+                                    com.deenbase.app.features.quran.ui.ReadingScreen(
+                                        surahId = surahId,
+                                        surahName = surahName,
+                                        startVerse = 1,
+                                        trackGoal = false,
                                         onNavigateBack = { navController.popBackStack() }
                                     )
                                 }
+                                composable(
+                                    route = "goal_surah/{surahId}/{startVerse}",
+                                    enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
+                                    popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
+                                ) { backStackEntry ->
+                                    val surahId    = backStackEntry.arguments?.getString("surahId")?.toIntOrNull() ?: 1
+                                    val startVerse = backStackEntry.arguments?.getString("startVerse")?.toIntOrNull() ?: 1
+                                    com.deenbase.app.features.quran.ui.ReadingScreen(
+                                        surahId = surahId,
+                                        startVerse = startVerse,
+                                        trackGoal = true,
+                                        onNavigateBack = { navController.popBackStack() },
+                                        onNextSurah = { nextId ->
+                                            navController.popBackStack()
+                                            navController.navigate("goal_surah/$nextId/1")
+                                        }
+                                    )
+                                }
+                                composable(Screen.Dhikr.route) {
+                                    DhikrScreen(
+                                        onDhikrClick = { dhikrId, period ->
+                                            navController.navigate("dhikr_detail/$dhikrId/$period")
+                                        },
+                                        onSubhanallahClick = { navController.navigate("subhanallah") },
+                                        onTasbihClick = { navController.navigate("tasbih") }
+                                    )
+                                }
+                                composable(
+                                    route = "dhikr_detail/{dhikrId}/{period}",
+                                    enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
+                                    popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
+                                ) { backStackEntry ->
+                                    val dhikrId = backStackEntry.arguments?.getString("dhikrId") ?: "bismillah"
+                                    val period  = backStackEntry.arguments?.getString("period")  ?: "morning"
+                                    val content = when (dhikrId) {
+                                        "bismillah" -> getBismillahContent(period)
+                                        "raditu"    -> getRadituContent(period)
+                                        else        -> getBismillahContent(period)
+                                    }
+                                    DhikrDetailScreen(
+                                        content = content,
+                                        onNavigateBack = { navController.popBackStack() }
+                                    )
+                                }
+                                composable(Screen.Settings.route) {
+                                    SettingsScreen(
+                                        onNavigateBack = { navController.popBackStack() },
+                                        onQuranSettingsClick = { navController.navigate("quran_settings") },
+                                        onQuranGoalClick = { navController.navigate("quran_goal") },
+                                        onAppPreferencesClick = { navController.navigate("app_preferences") },
+                                        onNotificationSettingsClick = { navController.navigate("notification_settings") },
+                                        onAboutClick = { navController.navigate("about") },
+                                        onCheckForUpdatesClick = { updateViewModel.checkForUpdate(manual = true) },
+                                        isCheckingForUpdates = updateState.isChecking
+                                    )
+                                }
+                                composable(
+                                    route = "about",
+                                    enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
+                                    popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
+                                ) {
+                                    AboutScreen(onNavigateBack = { navController.popBackStack() })
+                                }
+                                composable(
+                                    route = "app_preferences",
+                                    enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
+                                    popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
+                                ) {
+                                    AppPreferencesScreen(onNavigateBack = { navController.popBackStack() })
+                                }
+                                composable(
+                                    route = "quran_settings",
+                                    enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
+                                    popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
+                                ) {
+                                    QuranSettingsScreen(onNavigateBack = { navController.popBackStack() })
+                                }
+                                composable(
+                                    route = "quran_goal",
+                                    enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
+                                    popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
+                                ) {
+                                    QuranGoalScreen(onNavigateBack = { navController.popBackStack() })
+                                }
+                                composable(
+                                    route = "notification_settings",
+                                    enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
+                                    popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
+                                ) {
+                                    NotificationSettingsScreen(onNavigateBack = { navController.popBackStack() })
+                                }
+                                composable(
+                                    route = "hadith",
+                                    enterTransition   = { slideInHorizontally { it } + fadeIn(tween(300)) },
+                                    exitTransition    = { slideOutHorizontally { -it } + fadeOut(tween(300)) },
+                                    popEnterTransition = { slideInHorizontally { -it } + fadeIn(tween(300)) },
+                                    popExitTransition  = { slideOutHorizontally { it } + fadeOut(tween(300)) }
+                                ) {
+                                    val hadithViewModel: HadithViewModel = viewModel()
+                                    HadithScreen(
+                                        onNavigateBack = { navController.popBackStack() },
+                                        onBookClick = { book ->
+                                            hadithViewModel.selectBook(book)
+                                            navController.navigate("hadith_chapters")
+                                        },
+                                        onSearchClick = { navController.navigate("hadith_search") },
+                                        viewModel = hadithViewModel
+                                    )
+                                }
+                                composable(
+                                    route = "hadith_chapters",
+                                    enterTransition   = { slideInHorizontally { it } + fadeIn(tween(300)) },
+                                    exitTransition    = { slideOutHorizontally { -it } + fadeOut(tween(300)) },
+                                    popEnterTransition = { slideInHorizontally { -it } + fadeIn(tween(300)) },
+                                    popExitTransition  = { slideOutHorizontally { it } + fadeOut(tween(300)) }
+                                ) {
+                                    val hadithViewModel: HadithViewModel = viewModel(
+                                        viewModelStoreOwner = navController.getBackStackEntry("hadith")
+                                    )
+                                    ChaptersScreen(
+                                        onNavigateBack = { navController.popBackStack() },
+                                        onChapterClick = { chapter ->
+                                            hadithViewModel.selectChapter(chapter)
+                                            navController.navigate("hadith_list")
+                                        },
+                                        viewModel = hadithViewModel
+                                    )
+                                }
+                                composable(
+                                    route = "hadith_list",
+                                    enterTransition   = { slideInHorizontally { it } + fadeIn(tween(300)) },
+                                    exitTransition    = { slideOutHorizontally { -it } + fadeOut(tween(300)) },
+                                    popEnterTransition = { slideInHorizontally { -it } + fadeIn(tween(300)) },
+                                    popExitTransition  = { slideOutHorizontally { it } + fadeOut(tween(300)) }
+                                ) {
+                                    val hadithViewModel: HadithViewModel = viewModel(
+                                        viewModelStoreOwner = navController.getBackStackEntry("hadith")
+                                    )
+                                    HadithListScreen(
+                                        onNavigateBack = { navController.popBackStack() },
+                                        onHadithClick = { hadith ->
+                                            hadithViewModel.selectHadith(hadith)
+                                            navController.navigate("hadith_detail")
+                                        },
+                                        viewModel = hadithViewModel
+                                    )
+                                }
+                                composable(
+                                    route = "hadith_search",
+                                    enterTransition   = { slideInHorizontally { it } + fadeIn(tween(300)) },
+                                    exitTransition    = { slideOutHorizontally { -it } + fadeOut(tween(300)) },
+                                    popEnterTransition = { slideInHorizontally { -it } + fadeIn(tween(300)) },
+                                    popExitTransition  = { slideOutHorizontally { it } + fadeOut(tween(300)) }
+                                ) {
+                                    val hadithViewModel: HadithViewModel = viewModel(
+                                        viewModelStoreOwner = navController.getBackStackEntry("hadith")
+                                    )
+                                    HadithSearchScreen(
+                                        onNavigateBack = { navController.popBackStack() },
+                                        onHadithClick = { hadith ->
+                                            hadithViewModel.selectHadith(hadith)
+                                            navController.navigate("hadith_detail")
+                                        },
+                                        viewModel = hadithViewModel
+                                    )
+                                }
+                                composable(
+                                    route = "hadith_detail",
+                                    enterTransition   = { slideInHorizontally { it } + fadeIn(tween(300)) },
+                                    exitTransition    = { slideOutHorizontally { -it } + fadeOut(tween(300)) },
+                                    popEnterTransition = { slideInHorizontally { -it } + fadeIn(tween(300)) },
+                                    popExitTransition  = { slideOutHorizontally { it } + fadeOut(tween(300)) }
+                                ) {
+                                    val hadithViewModel: HadithViewModel = viewModel(
+                                        viewModelStoreOwner = navController.getBackStackEntry("hadith")
+                                    )
+                                    val selectedHadith = hadithViewModel.selectedHadith.collectAsState().value
+                                    selectedHadith?.let {
+                                        HadithDetailScreen(
+                                            hadith = it,
+                                            onNavigateBack = { navController.popBackStack() }
+                                        )
+                                    }
+                                }
+                            }
+
+                            // ── Bottom bar ────────────────────────────────────
+                            AnimatedVisibility(
+                                visible = isBottomBarVisible,
+                                enter = slideInVertically(animationSpec = tween(durationMillis = 350, easing = androidx.compose.animation.core.FastOutSlowInEasing)) { it } + fadeIn(tween(350)),
+                                exit  = slideOutVertically(animationSpec = tween(durationMillis = 350, easing = androidx.compose.animation.core.FastOutSlowInEasing)) { it } + fadeOut(tween(350)),
+                                modifier = Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .navigationBarsPadding()
+                                    .padding(bottom = 16.dp)
+                            ) {
+                                FloatingBottomBar(screens = screens, navController = navController)
                             }
                         }
-
-                        // ── Bottom bar ────────────────────────────────────────
-                        AnimatedVisibility(
-                            visible = isBottomBarVisible,
-                            enter = slideInVertically(animationSpec = tween(durationMillis = 350, easing = androidx.compose.animation.core.FastOutSlowInEasing)) { it } + fadeIn(tween(350)),
-                            exit = slideOutVertically(animationSpec = tween(durationMillis = 350, easing = androidx.compose.animation.core.FastOutSlowInEasing)) { it } + fadeOut(tween(350)),
-                            modifier = Modifier
-                                .align(Alignment.BottomCenter)
-                                .navigationBarsPadding()
-                                .padding(bottom = 16.dp)
-                        ) {
-                            FloatingBottomBar(
-                                screens = screens,
-                                navController = navController
-                            )
-                        }
-                    }
-                } // end Scaffold
-                } // end else (onboarding done)
-                } // end when (onboardingDone)
-            }
+                    } // end Scaffold
+                    } // end else (onboarding done)
+                    } // end when (onboardingDone)
+                } // end DeenBaseTheme
+            } // end CompositionLocalProvider
         }
     }
 }
@@ -491,39 +481,33 @@ fun FloatingBottomBar(
     val currentDestination = navBackStackEntry?.destination
 
     val selectedIndex = screens.indexOfFirst { screen ->
-        val isExactMatch = currentDestination?.route == screen.route
+        val isExactMatch   = currentDestination?.route == screen.route
         val isReadingSurah = screen.route == Screen.Quran.route &&
             (currentDestination?.route?.startsWith("browse_surah") == true ||
-             currentDestination?.route?.startsWith("goal_surah") == true ||
+             currentDestination?.route?.startsWith("goal_surah")   == true ||
              currentDestination?.route == "saved_verses")
         isExactMatch || isReadingSurah
     }.coerceAtLeast(0)
 
-    val itemWidth = 72.dp
-    val spacing = 12.dp
+    val itemWidth    = 72.dp
+    val spacing      = 12.dp
     val outerPadding = 8.dp
-    val barWidth = (itemWidth * screens.size) + (spacing * (screens.size - 1)) + (outerPadding * 2)
+    val barWidth     = (itemWidth * screens.size) + (spacing * (screens.size - 1)) + (outerPadding * 2)
 
     val indicatorOffset by animateDpAsState(
         targetValue = (itemWidth + spacing) * selectedIndex,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioLowBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
+        animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessLow),
         label = "IndicatorSlide"
     )
 
     Surface(
-        modifier = modifier
-            .width(barWidth)
-            .height(64.dp),
+        modifier = modifier.width(barWidth).height(64.dp),
         shape = CircleShape,
         color = MaterialTheme.colorScheme.surfaceContainer,
         tonalElevation = 6.dp,
         shadowElevation = 8.dp
     ) {
         Box(modifier = Modifier.padding(outerPadding)) {
-            // Sliding indicator
             Box(
                 modifier = Modifier
                     .offset(x = indicatorOffset)
@@ -541,7 +525,7 @@ fun FloatingBottomBar(
                     val isSelected = currentDestination?.route == screen.route ||
                         (screen.route == Screen.Quran.route &&
                             (currentDestination?.route?.startsWith("browse_surah") == true ||
-                             currentDestination?.route?.startsWith("goal_surah") == true)) ||
+                             currentDestination?.route?.startsWith("goal_surah")   == true)) ||
                         (screen.route == Screen.Dhikr.route &&
                             currentDestination?.route?.startsWith("dhikr_detail") == true)
                     val interactionSource = remember { MutableInteractionSource() }
@@ -557,7 +541,7 @@ fun FloatingBottomBar(
                                     navController.navigate(screen.route) {
                                         popUpTo(navController.graph.startDestinationId) { saveState = true }
                                         launchSingleTop = true
-                                        restoreState = true
+                                        restoreState    = true
                                     }
                                 }
                             ),
@@ -567,20 +551,16 @@ fun FloatingBottomBar(
                             Icon(
                                 painter = painterResource(id = R.drawable.ic_dhikr),
                                 contentDescription = screen.label,
-                                tint = if (isSelected)
-                                    MaterialTheme.colorScheme.onSecondaryContainer
-                                else
-                                    MaterialTheme.colorScheme.onSurfaceVariant,
+                                tint = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer
+                                       else MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(24.dp)
                             )
                         } else {
                             Icon(
                                 imageVector = screen.icon,
                                 contentDescription = screen.label,
-                                tint = if (isSelected)
-                                    MaterialTheme.colorScheme.onSecondaryContainer
-                                else
-                                    MaterialTheme.colorScheme.onSurfaceVariant,
+                                tint = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer
+                                       else MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(24.dp)
                             )
                         }

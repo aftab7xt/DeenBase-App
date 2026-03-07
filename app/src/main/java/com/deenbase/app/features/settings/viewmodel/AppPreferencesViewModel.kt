@@ -17,12 +17,18 @@ class AppPreferencesViewModel(application: Application) : AndroidViewModel(appli
     val hapticsEnabled = settingsManager.hapticsEnabled.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), true
     )
+    val oledMode = settingsManager.oledMode.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), false
+    )
 
     fun setThemeMode(mode: String) {
         viewModelScope.launch { settingsManager.setThemeMode(mode) }
     }
     fun setHapticsEnabled(enabled: Boolean) {
         viewModelScope.launch { settingsManager.setHapticsEnabled(enabled) }
+    }
+    fun setOledMode(enabled: Boolean) {
+        viewModelScope.launch { settingsManager.setOledMode(enabled) }
     }
     fun resetAllData() {
         viewModelScope.launch { settingsManager.resetAllData() }

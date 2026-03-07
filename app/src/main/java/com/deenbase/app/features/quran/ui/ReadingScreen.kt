@@ -1,25 +1,12 @@
 package com.deenbase.app.features.quran.ui
 
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.foundation.LocalIndication
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -37,7 +24,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
+import com.deenbase.app.ui.LocalHapticsEnabled
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -49,7 +43,6 @@ import com.deenbase.app.R
 import com.deenbase.app.features.quran.data.BISMILLAH
 import com.deenbase.app.features.quran.data.SURAH_NO_BISMILLAH_HEADER
 import com.deenbase.app.features.quran.viewmodel.ReadingViewModel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class,
@@ -216,7 +209,6 @@ fun ReadingScreen(
                 val scrollState = rememberScrollState()
                 LaunchedEffect(page) { scrollState.scrollTo(0) }
 
-                // ── Derived from ViewModel — persisted across sessions ─────────
                 val verseKey = "${verse.surahId}:${verse.verseNumber}"
                 val isFavourite = verseKey in favouriteVerses
                 val isBookmarked = verseKey in bookmarkedVerses
@@ -265,7 +257,6 @@ fun ReadingScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                // Verse number
                                 Box(
                                     modifier = Modifier.size(48.dp),
                                     contentAlignment = Alignment.Center
@@ -277,8 +268,6 @@ fun ReadingScreen(
                                         color = MaterialTheme.colorScheme.primary
                                     )
                                 }
-
-                                // Play + Favourite + Bookmark
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     IconButton(onClick = { /* TODO: audio */ }) {
                                         Icon(
@@ -379,32 +368,7 @@ fun ReadingScreen(
     }
 }
 
-@Composable
-fun SpringIconButton(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-    containerColor: Color,
-    contentColor: Color,
-    size: Int = 48,
-    content: @Composable () -> Unit
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.82f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
-        label = "scale"
-    )
-    FilledIconButton(
-        onClick = onClick,
-        enabled = enabled,
-        modifier = modifier.size(size.dp).scale(scale),
-        interactionSource = interactionSource,
-        colors = IconButtonDefaults.filledIconButtonColors(containerColor = containerColor, contentColor = contentColor)
-    ) { content() }
-}
-
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ReaderBottomNavigation(
     onPreviousClick: () -> Unit,
@@ -413,12 +377,71 @@ fun ReaderBottomNavigation(
     isPreviousEnabled: Boolean,
     isLastVerse: Boolean
 ) {
+    val haptic = LocalHapticFeedback.current
+    val hapticsEnabled = LocalHapticsEnabled.current
+
+    val prevSource = remember { MutableInteractionSource() }
+    val doneSource = remember { MutableInteractionSource() }
+    val nextSource = remember { MutableInteractionSource() }
+
+    val prevPressed by prevSource.collectIsPressedAsState()
+    val donePressed by doneSource.collectIsPressedAsState()
+    val nextPressed by nextSource.collectIsPressedAsState()
+
+    // When a button is pressed, it grows; the others shrink
+    val prevWeight by animateFloatAsState(
+        targetValue = when {
+            prevPressed -> 1.4f
+            donePressed || nextPressed -> 0.8f
+            else -> 1f
+        },
+        animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
+        label = "prevWeight"
+    )
+    val doneWeight by animateFloatAsState(
+        targetValue = when {
+            donePressed -> 2.4f
+            prevPressed || nextPressed -> 1.6f
+            else -> 2f
+        },
+        animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
+        label = "doneWeight"
+    )
+    val nextWeight by animateFloatAsState(
+        targetValue = when {
+            nextPressed -> 1.4f
+            donePressed || prevPressed -> 0.8f
+            else -> 1f
+        },
+        animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
+        label = "nextWeight"
+    )
+
+    // Corner morphing — pill buttons squish from 50dp → 14dp, rect from 16dp → 6dp
+    val prevCorner by animateDpAsState(
+        targetValue = if (prevPressed) 14.dp else 50.dp,
+        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+        label = "prevCorner"
+    )
+    val doneCorner by animateDpAsState(
+        targetValue = if (donePressed) 6.dp else 16.dp,
+        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+        label = "doneCorner"
+    )
+    val nextCorner by animateDpAsState(
+        targetValue = if (nextPressed) 14.dp else 50.dp,
+        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+        label = "nextCorner"
+    )
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(120.dp)
             .background(
-                Brush.verticalGradient(colors = listOf(Color.Transparent, MaterialTheme.colorScheme.background))
+                Brush.verticalGradient(
+                    colors = listOf(Color.Transparent, MaterialTheme.colorScheme.background)
+                )
             )
     ) {
         Row(
@@ -430,138 +453,73 @@ fun ReaderBottomNavigation(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            MorphPillButton(
-                onClick = onPreviousClick,
+            // ── PREVIOUS ─────────────────────────────────────────────────────
+            FilledTonalButton(
+                onClick = {
+                    onPreviousClick()
+                    if (hapticsEnabled) haptic.performHapticFeedback(HapticFeedbackType.VirtualKey)
+                },
                 enabled = isPreviousEnabled,
-                modifier = Modifier.weight(1f),
-                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                contentColor = MaterialTheme.colorScheme.onSurface
+                interactionSource = prevSource,
+                shape = RoundedCornerShape(prevCorner),
+                contentPadding = PaddingValues(0.dp),
+                colors = ButtonDefaults.filledTonalButtonColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    contentColor = MaterialTheme.colorScheme.onSurface,
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.38f),
+                    disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                ),
+                modifier = Modifier
+                    .height(52.dp)
+                    .weight(prevWeight)
             ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Previous",
-                    tint = MaterialTheme.colorScheme.onSurface
-                )
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Previous")
             }
 
-            MorphRectButton(
-                onClick = onDoneClick,
-                modifier = Modifier.weight(2f),
-                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                contentColor = MaterialTheme.colorScheme.onSurface
+            // ── DONE READING ──────────────────────────────────────────────────
+            FilledTonalButton(
+                onClick = {
+                    onDoneClick()
+                    if (hapticsEnabled) haptic.performHapticFeedback(HapticFeedbackType.VirtualKey)
+                },
+                interactionSource = doneSource,
+                shape = RoundedCornerShape(doneCorner),
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                colors = ButtonDefaults.filledTonalButtonColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    contentColor = MaterialTheme.colorScheme.onSurface
+                ),
+                modifier = Modifier
+                    .height(52.dp)
+                    .weight(doneWeight)
             ) {
                 Text(
                     text = "Done Reading",
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    maxLines = 1
                 )
             }
 
-            MorphPillButton(
-                onClick = onNextClick,
-                modifier = Modifier.weight(1f),
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
+            // ── NEXT ──────────────────────────────────────────────────────────
+            FilledTonalButton(
+                onClick = {
+                    onNextClick()
+                    if (hapticsEnabled) haptic.performHapticFeedback(HapticFeedbackType.VirtualKey)
+                },
+                interactionSource = nextSource,
+                shape = RoundedCornerShape(nextCorner),
+                contentPadding = PaddingValues(0.dp),
+                colors = ButtonDefaults.filledTonalButtonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                ),
+                modifier = Modifier
+                    .height(52.dp)
+                    .weight(nextWeight)
             ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = "Next",
-                    tint = MaterialTheme.colorScheme.onPrimary
-                )
+                Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Next")
             }
         }
-    }
-}
-
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Composable
-fun MorphPillButton(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-    containerColor: Color,
-    contentColor: Color,
-    content: @Composable () -> Unit
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPhysicallyPressed by interactionSource.collectIsPressedAsState()
-    var forceSquish by remember { mutableStateOf(false) }
-    val isSquished = isPhysicallyPressed || forceSquish
-    val scope = rememberCoroutineScope()
-
-    val corner by animateDpAsState(
-        targetValue = if (isSquished) 14.dp else 50.dp,
-        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
-        label = "pill_corner"
-    )
-    val scale by animateFloatAsState(
-        targetValue = if (isSquished) 0.95f else 1.0f,
-        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
-        label = "pill_scale"
-    )
-
-    FilledTonalButton(
-        onClick = {
-            onClick()
-            scope.launch { forceSquish = true; delay(90); forceSquish = false }
-        },
-        enabled = enabled,
-        interactionSource = interactionSource,
-        shape = RoundedCornerShape(corner),
-        contentPadding = PaddingValues(0.dp),
-        colors = ButtonDefaults.filledTonalButtonColors(
-            containerColor = containerColor,
-            contentColor = contentColor,
-            disabledContainerColor = containerColor.copy(alpha = 0.38f),
-            disabledContentColor = contentColor.copy(alpha = 0.38f)
-        ),
-        modifier = modifier.height(52.dp).scale(scale)
-    ) {
-        content()
-    }
-}
-
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Composable
-fun MorphRectButton(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    containerColor: Color,
-    contentColor: Color,
-    content: @Composable () -> Unit
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPhysicallyPressed by interactionSource.collectIsPressedAsState()
-    var forceSquish by remember { mutableStateOf(false) }
-    val isSquished = isPhysicallyPressed || forceSquish
-    val scope = rememberCoroutineScope()
-
-    val corner by animateDpAsState(
-        targetValue = if (isSquished) 6.dp else 16.dp,
-        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
-        label = "rect_corner"
-    )
-    val scale by animateFloatAsState(
-        targetValue = if (isSquished) 0.95f else 1.0f,
-        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
-        label = "rect_scale"
-    )
-
-    FilledTonalButton(
-        onClick = {
-            onClick()
-            scope.launch { forceSquish = true; delay(90); forceSquish = false }
-        },
-        interactionSource = interactionSource,
-        shape = RoundedCornerShape(corner),
-        contentPadding = PaddingValues(0.dp),
-        colors = ButtonDefaults.filledTonalButtonColors(
-            containerColor = containerColor,
-            contentColor = contentColor
-        ),
-        modifier = modifier.height(52.dp).scale(scale)
-    ) {
-        content()
     }
 }

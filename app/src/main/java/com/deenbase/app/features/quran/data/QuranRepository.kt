@@ -158,4 +158,31 @@ class QuranRepository {
             )
         }
     }
+
+    fun getDailyVerse(dayOfYear: Int): Verse? {
+        val offset = dayOfYear % 6236
+        val rows = query(
+            """
+            SELECT v.id, v.surah_number, v.verse_number, v.arabic_text,
+                   v.english_text, v.urdu_text, v.juz,
+                   s.name_transliteration, s.name_arabic
+            FROM verses v
+            JOIN surahs s ON v.surah_number = s.surah_number
+            LIMIT 1 OFFSET ?
+            """.trimIndent(),
+            listOf(offset)
+        )
+        return rows.firstOrNull()?.let { row ->
+            Verse(
+                id              = row["id"]?.toIntOrNull() ?: 0,
+                surahId         = row["surah_number"]?.toIntOrNull() ?: 0,
+                verseNumber     = row["verse_number"]?.toIntOrNull() ?: 0,
+                arabicText      = row["arabic_text"] ?: "",
+                translationText = row["english_text"] ?: "",
+                juz             = row["juz"]?.toIntOrNull() ?: 0,
+                surahName       = row["name_transliteration"] ?: "",
+                surahNameArabic = row["name_arabic"] ?: ""
+            )
+        }
+    }
 }
