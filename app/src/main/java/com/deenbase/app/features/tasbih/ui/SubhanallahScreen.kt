@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.deenbase.app.R
 import com.deenbase.app.features.tasbih.viewmodel.SubhanallahViewModel
+import com.deenbase.app.ui.LocalHapticsEnabled
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -39,6 +40,7 @@ fun SubhanallahScreen(
     viewModel: SubhanallahViewModel = viewModel()
 ) {
     val haptic = LocalHapticFeedback.current
+    val hapticsEnabled = LocalHapticsEnabled.current
     val scope = rememberCoroutineScope()
 
     val count by viewModel.count.collectAsState()
@@ -47,7 +49,6 @@ fun SubhanallahScreen(
     var showCompletionDialog by remember { mutableStateOf(false) }
     var hasShownDialog by remember { mutableStateOf(false) }
 
-    // Read arabicFontStyle from settings to match reading screen font
     val arabicFont = remember {
         FontFamily(Font(R.font.indopak_nastaleeq))
     }
@@ -59,7 +60,6 @@ fun SubhanallahScreen(
         }
     }
 
-    // --- TAP BUTTON ---
     val tapInteractionSource = remember { MutableInteractionSource() }
     val isTapPhysicallyPressed by tapInteractionSource.collectIsPressedAsState()
     var forceSquishTap by remember { mutableStateOf(false) }
@@ -82,7 +82,6 @@ fun SubhanallahScreen(
         label = "Progress"
     )
 
-    // ── Completion dialog ────────────────────────────────────────────────────
     if (showCompletionDialog) {
         AlertDialog(
             onDismissRequest = {},
@@ -140,12 +139,7 @@ fun SubhanallahScreen(
         )
     }
 
-    // ── Main layout ──────────────────────────────────────────────────────────
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-    ) {
-        // Back button — top-left, properly scoped inside Box
+    Box(modifier = Modifier.fillMaxSize()) {
         IconButton(
             onClick = onNavigateBack,
             modifier = Modifier
@@ -156,7 +150,6 @@ fun SubhanallahScreen(
             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
         }
 
-        // Main content column
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -167,8 +160,6 @@ fun SubhanallahScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceEvenly
         ) {
-
-            // ── Progress ring + count ────────────────────────────────────
             Box(contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(
                     progress = { animatedProgress },
@@ -199,7 +190,6 @@ fun SubhanallahScreen(
                 }
             }
 
-            // ── Arabic dhikr text ────────────────────────────────────────
             Text(
                 text = "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ",
                 fontFamily = arabicFont,
@@ -209,12 +199,11 @@ fun SubhanallahScreen(
                 textAlign = TextAlign.Center
             )
 
-            // ── TAP button — pill, same width as circle ──────────────────
             FilledTonalButton(
                 onClick = {
                     if (!isComplete) {
                         viewModel.increment()
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        if (hapticsEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         scope.launch {
                             forceSquishTap = true
                             delay(90)
@@ -249,7 +238,6 @@ fun SubhanallahScreen(
                 )
             }
 
-            // ── Hadith — two cards with 2dp gap ──────────────────────────
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(2.dp)

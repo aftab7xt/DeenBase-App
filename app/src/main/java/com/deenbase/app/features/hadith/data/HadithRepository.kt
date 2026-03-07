@@ -246,6 +246,46 @@ object HadithRepository {
         }
     }.recoverCatching { error("DB error: ${it.javaClass.simpleName}: ${it.message}") }
 
+    // ── Daily Hadith ──────────────────────────────────────────────────────────
+
+    suspend fun getDailyHadith(dayOfYear: Int): Result<Hadith?> = runCatching {
+        val offset = dayOfYear % 35903
+        val rows = query(
+            """
+            SELECT h.id, h.book_edition, h.hadith_number, h.chapter_number,
+                   h.text_english, h.text_arabic, h.grade,
+                   b.name_english AS book_name,
+                   c.name_english AS chapter_name
+            FROM hadiths h
+            JOIN books b ON h.book_edition = b.edition
+            LEFT JOIN chapters c ON h.book_edition = c.book_edition
+                                 AND h.chapter_number = c.chapter_number
+            LIMIT 1 OFFSET ?
+            """.trimIndent(),
+            listOf(offset)
+        )
+        rows.firstOrNull()?.let { row ->
+            val bookEdition = row["book_edition"] ?: ""
+            Hadith(
+                id             = row["id"]?.toIntOrNull() ?: 0,
+                hadithNumber   = row["hadith_number"] ?: "",
+                hadithEnglish  = row["text_english"] ?: "",
+                hadithArabic   = row["text_arabic"] ?: "",
+                hadithUrdu     = "",
+                englishNarrator = "",
+                urduNarrator   = "",
+                chapterNumber  = row["chapter_number"],
+                chapterEnglish = row["chapter_name"],
+                bookSlug       = bookEdition,
+                status         = row["grade"],
+                book           = BookInfo(
+                    bookName = row["book_name"] ?: bookEdition,
+                    slug     = bookEdition
+                )
+            )
+        }
+    }.recoverCatching { error(it.toUserMessage()) }
+
     // ── Row → Hadith mapping ──────────────────────────────────────────────────
 
     private fun List<Map<String, String?>>.toHadiths(): List<Hadith> = map { row ->

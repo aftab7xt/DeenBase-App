@@ -37,6 +37,7 @@ class SettingsManager(private val context: Context) {
         // App preferences
         val THEME_MODE            = stringPreferencesKey("theme_mode")
         val HAPTICS_ENABLED       = booleanPreferencesKey("haptics_enabled")
+        val OLED_MODE             = booleanPreferencesKey("oled_mode")
 
         // Onboarding
         val ONBOARDING_DONE       = booleanPreferencesKey("onboarding_done")
@@ -65,109 +66,51 @@ class SettingsManager(private val context: Context) {
     }
 
     // ── Quran display ─────────────────────────────────────────────────────────
-    val translationLang: Flow<String> = context.dataStore.data.map {
-        it[TRANSLATION_LANG] ?: "english"
-    }
-    val arabicFontStyle: Flow<String> = context.dataStore.data.map {
-        it[ARABIC_FONT_STYLE] ?: "indopak_nastaleeq"
-    }
-    val arabicFontSize: Flow<Float> = context.dataStore.data.map {
-        it[ARABIC_FONT_SIZE] ?: 32f
-    }
-    val translationFontSize: Flow<Float> = context.dataStore.data.map {
-        it[TRANSLATION_FONT_SIZE] ?: 18f
-    }
-    val showTranslation: Flow<Boolean> = context.dataStore.data.map {
-        it[SHOW_TRANSLATION] ?: true
-    }
+    val translationLang: Flow<String> = context.dataStore.data.map { it[TRANSLATION_LANG] ?: "english" }
+    val arabicFontStyle: Flow<String> = context.dataStore.data.map { it[ARABIC_FONT_STYLE] ?: "indopak_nastaleeq" }
+    val arabicFontSize: Flow<Float>   = context.dataStore.data.map { it[ARABIC_FONT_SIZE] ?: 32f }
+    val translationFontSize: Flow<Float> = context.dataStore.data.map { it[TRANSLATION_FONT_SIZE] ?: 18f }
+    val showTranslation: Flow<Boolean>   = context.dataStore.data.map { it[SHOW_TRANSLATION] ?: true }
 
-    suspend fun setTranslationLang(lang: String) {
-        context.dataStore.edit { it[TRANSLATION_LANG] = lang }
-    }
-    suspend fun setArabicFontStyle(style: String) {
-        context.dataStore.edit { it[ARABIC_FONT_STYLE] = style }
-    }
-    suspend fun setArabicFontSize(size: Float) {
-        context.dataStore.edit { it[ARABIC_FONT_SIZE] = size }
-    }
-    suspend fun setTranslationFontSize(size: Float) {
-        context.dataStore.edit { it[TRANSLATION_FONT_SIZE] = size }
-    }
-    suspend fun setShowTranslation(show: Boolean) {
-        context.dataStore.edit { it[SHOW_TRANSLATION] = show }
-    }
+    suspend fun setTranslationLang(lang: String)    { context.dataStore.edit { it[TRANSLATION_LANG] = lang } }
+    suspend fun setArabicFontStyle(style: String)   { context.dataStore.edit { it[ARABIC_FONT_STYLE] = style } }
+    suspend fun setArabicFontSize(size: Float)      { context.dataStore.edit { it[ARABIC_FONT_SIZE] = size } }
+    suspend fun setTranslationFontSize(size: Float) { context.dataStore.edit { it[TRANSLATION_FONT_SIZE] = size } }
+    suspend fun setShowTranslation(show: Boolean)   { context.dataStore.edit { it[SHOW_TRANSLATION] = show } }
 
     // ── Goal tracking ─────────────────────────────────────────────────────────
-    val goalSurahId: Flow<Int> = context.dataStore.data.map {
-        it[GOAL_SURAH_ID] ?: 1
-    }
-    val goalVerse: Flow<Int> = context.dataStore.data.map {
-        it[GOAL_VERSE] ?: 1
-    }
-    val goalDailyTarget: Flow<Int> = context.dataStore.data.map {
-        it[GOAL_DAILY_TARGET] ?: 10
-    }
-    val goalTodayCount: Flow<Int> = context.dataStore.data.map {
-        it[GOAL_TODAY_COUNT] ?: 0
-    }
-    val goalTodayDate: Flow<String> = context.dataStore.data.map {
-        it[GOAL_TODAY_DATE] ?: ""
-    }
+    val goalSurahId: Flow<Int>      = context.dataStore.data.map { it[GOAL_SURAH_ID] ?: 1 }
+    val goalVerse: Flow<Int>        = context.dataStore.data.map { it[GOAL_VERSE] ?: 1 }
+    val goalDailyTarget: Flow<Int>  = context.dataStore.data.map { it[GOAL_DAILY_TARGET] ?: 10 }
+    val goalTodayCount: Flow<Int>   = context.dataStore.data.map { it[GOAL_TODAY_COUNT] ?: 0 }
+    val goalTodayDate: Flow<String> = context.dataStore.data.map { it[GOAL_TODAY_DATE] ?: "" }
 
-    suspend fun setGoalSurahId(id: Int) {
-        context.dataStore.edit { it[GOAL_SURAH_ID] = id }
-    }
-    suspend fun setGoalVerse(verse: Int) {
-        context.dataStore.edit { it[GOAL_VERSE] = verse }
-    }
-    suspend fun setGoalDailyTarget(target: Int) {
-        context.dataStore.edit { it[GOAL_DAILY_TARGET] = target }
-    }
-    suspend fun setGoalTodayCount(count: Int) {
-        context.dataStore.edit { it[GOAL_TODAY_COUNT] = count }
-    }
-    suspend fun setGoalTodayDate(date: String) {
-        context.dataStore.edit { it[GOAL_TODAY_DATE] = date }
-    }
+    suspend fun setGoalSurahId(id: Int)        { context.dataStore.edit { it[GOAL_SURAH_ID] = id } }
+    suspend fun setGoalVerse(verse: Int)        { context.dataStore.edit { it[GOAL_VERSE] = verse } }
+    suspend fun setGoalDailyTarget(target: Int) { context.dataStore.edit { it[GOAL_DAILY_TARGET] = target } }
+    suspend fun setGoalTodayCount(count: Int)   { context.dataStore.edit { it[GOAL_TODAY_COUNT] = count } }
+    suspend fun setGoalTodayDate(date: String)  { context.dataStore.edit { it[GOAL_TODAY_DATE] = date } }
 
     // ── Subhanallahi wa bihamdihi 100x ────────────────────────────────────────
-    val subhanallahCount: Flow<Int> = context.dataStore.data.map {
-        it[SUBHANALLAH_COUNT] ?: 0
-    }
-    val subhanallahDate: Flow<String> = context.dataStore.data.map {
-        it[SUBHANALLAH_DATE] ?: ""
-    }
+    val subhanallahCount: Flow<Int>   = context.dataStore.data.map { it[SUBHANALLAH_COUNT] ?: 0 }
+    val subhanallahDate: Flow<String> = context.dataStore.data.map { it[SUBHANALLAH_DATE] ?: "" }
 
-    suspend fun setSubhanallahCount(count: Int) {
-        context.dataStore.edit { it[SUBHANALLAH_COUNT] = count }
-    }
-    suspend fun setSubhanallahDate(date: String) {
-        context.dataStore.edit { it[SUBHANALLAH_DATE] = date }
-    }
+    suspend fun setSubhanallahCount(count: Int) { context.dataStore.edit { it[SUBHANALLAH_COUNT] = count } }
+    suspend fun setSubhanallahDate(date: String) { context.dataStore.edit { it[SUBHANALLAH_DATE] = date } }
 
     // ── App preferences ───────────────────────────────────────────────────────
-    val themeMode: Flow<String> = context.dataStore.data.map {
-        it[THEME_MODE] ?: "system"
-    }
-    val hapticsEnabled: Flow<Boolean> = context.dataStore.data.map {
-        it[HAPTICS_ENABLED] ?: true
-    }
+    val themeMode: Flow<String>      = context.dataStore.data.map { it[THEME_MODE] ?: "system" }
+    val hapticsEnabled: Flow<Boolean> = context.dataStore.data.map { it[HAPTICS_ENABLED] ?: true }
+    val oledMode: Flow<Boolean>       = context.dataStore.data.map { it[OLED_MODE] ?: false }
 
-    suspend fun setThemeMode(mode: String) {
-        context.dataStore.edit { it[THEME_MODE] = mode }
-    }
-    suspend fun setHapticsEnabled(enabled: Boolean) {
-        context.dataStore.edit { it[HAPTICS_ENABLED] = enabled }
-    }
+    suspend fun setThemeMode(mode: String)      { context.dataStore.edit { it[THEME_MODE] = mode } }
+    suspend fun setHapticsEnabled(enabled: Boolean) { context.dataStore.edit { it[HAPTICS_ENABLED] = enabled } }
+    suspend fun setOledMode(enabled: Boolean)   { context.dataStore.edit { it[OLED_MODE] = enabled } }
 
     // ── Onboarding ────────────────────────────────────────────────────────────
-    val onboardingDone: Flow<Boolean> = context.dataStore.data.map {
-        it[ONBOARDING_DONE] ?: false
-    }
+    val onboardingDone: Flow<Boolean> = context.dataStore.data.map { it[ONBOARDING_DONE] ?: false }
 
-    suspend fun setOnboardingDone(done: Boolean) {
-        context.dataStore.edit { it[ONBOARDING_DONE] = done }
-    }
+    suspend fun setOnboardingDone(done: Boolean) { context.dataStore.edit { it[ONBOARDING_DONE] = done } }
 
     // ── Notification preferences ──────────────────────────────────────────────
     val quranNotifEnabled: Flow<Boolean>       = context.dataStore.data.map { it[QURAN_NOTIF_ENABLED] ?: false }
@@ -207,9 +150,7 @@ class SettingsManager(private val context: Context) {
     }
 
     // ── Verse favourites ──────────────────────────────────────────────────────
-    val favouriteVerses: Flow<Set<String>> = context.dataStore.data.map {
-        it[FAVOURITE_VERSES] ?: emptySet()
-    }
+    val favouriteVerses: Flow<Set<String>> = context.dataStore.data.map { it[FAVOURITE_VERSES] ?: emptySet() }
 
     suspend fun toggleFavouriteVerse(surahId: Int, verseNumber: Int) {
         val key = "$surahId:$verseNumber"
@@ -220,9 +161,7 @@ class SettingsManager(private val context: Context) {
     }
 
     // ── Verse bookmarks ───────────────────────────────────────────────────────
-    val bookmarkedVerses: Flow<Set<String>> = context.dataStore.data.map {
-        it[BOOKMARKED_VERSES] ?: emptySet()
-    }
+    val bookmarkedVerses: Flow<Set<String>> = context.dataStore.data.map { it[BOOKMARKED_VERSES] ?: emptySet() }
 
     suspend fun toggleBookmarkVerse(surahId: Int, verseNumber: Int) {
         val key = "$surahId:$verseNumber"

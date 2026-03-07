@@ -31,6 +31,78 @@ import androidx.core.content.ContextCompat
 import com.deenbase.app.features.settings.viewmodel.NotificationSettingsViewModel
 import java.util.Locale
 
+// ── Compact row helpers ───────────────────────────────────────────────────────
+
+@Composable
+private fun NotifSwitchRow(
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    shape: RoundedCornerShape,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Surface(
+        shape = shape,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
+                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Switch(
+                checked = checked,
+                onCheckedChange = onCheckedChange,
+                colors = SwitchDefaults.colors(
+                    uncheckedTrackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    uncheckedThumbColor = MaterialTheme.colorScheme.onSurface,
+                    uncheckedBorderColor = MaterialTheme.colorScheme.outline
+                )
+            )
+        }
+    }
+}
+
+@Composable
+private fun NotifTimeRow(
+    title: String,
+    time: String,
+    shape: RoundedCornerShape,
+    onClick: () -> Unit
+) {
+    Surface(
+        shape = shape,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        modifier = Modifier.fillMaxWidth().clip(shape).clickable(onClick = onClick)
+    ) {
+        Row(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
+                Text(time, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+}
+
+@Composable
+private fun NotifSectionLabel(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(start = 4.dp, bottom = 6.dp, top = 24.dp)
+    )
+}
+
+private fun formatTime(hour: Int, minute: Int): String {
+    val amPm = if (hour < 12) "AM" else "PM"
+    val h = when { hour == 0 -> 12; hour > 12 -> hour - 12; else -> hour }
+    return String.format(Locale.getDefault(), "%d:%02d %s", h, minute, amPm)
+}
+
+// ── Screen ────────────────────────────────────────────────────────────────────
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NotificationSettingsScreen(
@@ -51,33 +123,26 @@ fun NotificationSettingsScreen(
     val dhikrHour2         by viewModel.dhikrHour2.collectAsState()
     val dhikrMinute2       by viewModel.dhikrMinute2.collectAsState()
 
-    // Time picker dialog state
     var showPicker by remember { mutableStateOf(false) }
     var pickerTitle by remember { mutableStateOf("") }
     var pickerState by remember { mutableStateOf<TimePickerState?>(null) }
     var onPickerConfirm by remember { mutableStateOf<(Int, Int) -> Unit>({ _, _ -> }) }
 
-    // Permission handling
     val context = LocalContext.current
     var pendingToggle by remember { mutableStateOf<(() -> Unit)?>(null) }
 
-    fun hasNotifPermission(): Boolean {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
-        } else true
-    }
+    fun hasNotifPermission(): Boolean = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
+        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+    else true
 
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
+    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) pendingToggle?.invoke()
         pendingToggle = null
     }
 
     fun requestOrRun(onGranted: () -> Unit) {
-        if (hasNotifPermission()) {
-            onGranted()
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        if (hasNotifPermission()) { onGranted() }
+        else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             pendingToggle = onGranted
             permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
@@ -95,47 +160,21 @@ fun NotificationSettingsScreen(
         AlertDialog(
             onDismissRequest = { showPicker = false },
             title = { Text(pickerTitle) },
-            text = {
-                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    TimePicker(state = state)
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    onPickerConfirm(state.hour, state.minute)
-                    showPicker = false
-                }) { Text("Set") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showPicker = false }) { Text("Cancel") }
-            }
+            text = { Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { TimePicker(state = state) } },
+            confirmButton = { TextButton(onClick = { onPickerConfirm(state.hour, state.minute); showPicker = false }) { Text("Set") } },
+            dismissButton = { TextButton(onClick = { showPicker = false }) { Text("Cancel") } }
         )
     }
 
-    val gradientBrush = Brush.verticalGradient(
-        colors = listOf(MaterialTheme.colorScheme.background, Color.Transparent)
-    )
+    val gradientBrush = Brush.verticalGradient(colors = listOf(MaterialTheme.colorScheme.background, Color.Transparent))
 
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
                 modifier = Modifier.background(brush = gradientBrush),
-                title = {
-                    Text(
-                        "Notification Settings",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = Color.Transparent,
-                    scrolledContainerColor = Color.Transparent
-                )
+                title = { Text("Notification Settings", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold) },
+                navigationIcon = { IconButton(onClick = onNavigateBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") } },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.Transparent, scrolledContainerColor = Color.Transparent)
             )
         },
         containerColor = MaterialTheme.colorScheme.background
@@ -150,94 +189,34 @@ fun NotificationSettingsScreen(
 
             // ── QURAN REMINDER ────────────────────────────────────────────
             NotifSectionLabel("Quran Reminder")
-
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-
-                // Enable toggle
-                ListItem(
-                    headlineContent = { Text("Daily Reminder", fontWeight = FontWeight.SemiBold) },
-                    supportingContent = { Text("Get reminded to read your daily Quran goal") },
-                    trailingContent = {
-                        Switch(
-                            checked = quranEnabled,
-                            onCheckedChange = { enabled ->
-                                if (enabled) requestOrRun { viewModel.setQuranEnabled(true) }
-                                else viewModel.setQuranEnabled(false)
-                            },
-                            colors = SwitchDefaults.colors(
-                                uncheckedTrackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                                uncheckedThumbColor = MaterialTheme.colorScheme.onSurface,
-                                uncheckedBorderColor = MaterialTheme.colorScheme.outline
-                            )
-                        )
-                    },
-                    modifier = Modifier.clip(
-                        if (!quranEnabled) RoundedCornerShape(20.dp)
-                        else RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 4.dp, bottomEnd = 4.dp)
-                    ),
-                    colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+                NotifSwitchRow(
+                    title = "Daily Reminder",
+                    subtitle = "Get reminded to read your daily Quran goal",
+                    checked = quranEnabled,
+                    shape = if (!quranEnabled) RoundedCornerShape(20.dp)
+                            else RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 4.dp, bottomEnd = 4.dp),
+                    onCheckedChange = { if (it) requestOrRun { viewModel.setQuranEnabled(true) } else viewModel.setQuranEnabled(false) }
                 )
-
-                AnimatedVisibility(
-                    visible = quranEnabled,
-                    enter = expandVertically(),
-                    exit = shrinkVertically()
-                ) {
+                AnimatedVisibility(visible = quranEnabled, enter = expandVertically(), exit = shrinkVertically()) {
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        NotifTimeRow(
+                            title = "Reminder Time", time = formatTime(quranHour1, quranMinute1),
+                            shape = RoundedCornerShape(4.dp)
+                        ) { openPicker("Quran Reminder Time", quranHour1, quranMinute1) { h, m -> viewModel.setQuranTime1(h, m) } }
 
-                        // Time picker 1
-                        ListItem(
-                            headlineContent = { Text("Reminder Time", fontWeight = FontWeight.SemiBold) },
-                            supportingContent = { Text(formatTime(quranHour1, quranMinute1)) },
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(4.dp))
-                                .clickable {
-                                    openPicker("Quran Reminder Time", quranHour1, quranMinute1) { h, m ->
-                                        viewModel.setQuranTime1(h, m)
-                                    }
-                                },
-                            colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+                        NotifSwitchRow(
+                            title = "Second Reminder", subtitle = "Missed it? Get a follow-up alert",
+                            checked = quranSecondEnabled,
+                            shape = if (!quranSecondEnabled) RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 20.dp, bottomEnd = 20.dp)
+                                    else RoundedCornerShape(4.dp),
+                            onCheckedChange = { viewModel.setQuranSecondEnabled(it) }
                         )
-
-                        // Second reminder toggle
-                        ListItem(
-                            headlineContent = { Text("Second Reminder", fontWeight = FontWeight.SemiBold) },
-                            supportingContent = { Text("Missed it? Get a follow-up alert") },
-                            trailingContent = {
-                                Switch(
-                                    checked = quranSecondEnabled,
-                                    onCheckedChange = { viewModel.setQuranSecondEnabled(it) },
-                                    colors = SwitchDefaults.colors(
-                                        uncheckedTrackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                                        uncheckedThumbColor = MaterialTheme.colorScheme.onSurface,
-                                        uncheckedBorderColor = MaterialTheme.colorScheme.outline
-                                    )
-                                )
-                            },
-                            modifier = Modifier.clip(
-                                if (!quranSecondEnabled) RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 20.dp, bottomEnd = 20.dp)
-                                else RoundedCornerShape(4.dp)
-                            ),
-                            colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
-                        )
-
-                        AnimatedVisibility(
-                            visible = quranSecondEnabled,
-                            enter = expandVertically(),
-                            exit = shrinkVertically()
-                        ) {
-                            ListItem(
-                                headlineContent = { Text("Second Reminder Time", fontWeight = FontWeight.SemiBold) },
-                                supportingContent = { Text(formatTime(quranHour2, quranMinute2)) },
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 20.dp, bottomEnd = 20.dp))
-                                    .clickable {
-                                        openPicker("Second Quran Reminder", quranHour2, quranMinute2) { h, m ->
-                                            viewModel.setQuranTime2(h, m)
-                                        }
-                                    },
-                                colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
-                            )
+                        AnimatedVisibility(visible = quranSecondEnabled, enter = expandVertically(), exit = shrinkVertically()) {
+                            NotifTimeRow(
+                                title = "Second Reminder Time", time = formatTime(quranHour2, quranMinute2),
+                                shape = RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 20.dp, bottomEnd = 20.dp)
+                            ) { openPicker("Second Quran Reminder", quranHour2, quranMinute2) { h, m -> viewModel.setQuranTime2(h, m) } }
                         }
                     }
                 }
@@ -245,91 +224,34 @@ fun NotificationSettingsScreen(
 
             // ── DHIKR REMINDER ────────────────────────────────────────────
             NotifSectionLabel("Dhikr Reminder")
-
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-
-                ListItem(
-                    headlineContent = { Text("Daily Reminder", fontWeight = FontWeight.SemiBold) },
-                    supportingContent = { Text("Reminder for Subhanallahi wa bihamdihi ×100") },
-                    trailingContent = {
-                        Switch(
-                            checked = dhikrEnabled,
-                            onCheckedChange = { enabled ->
-                                if (enabled) requestOrRun { viewModel.setDhikrEnabled(true) }
-                                else viewModel.setDhikrEnabled(false)
-                            },
-                            colors = SwitchDefaults.colors(
-                                uncheckedTrackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                                uncheckedThumbColor = MaterialTheme.colorScheme.onSurface,
-                                uncheckedBorderColor = MaterialTheme.colorScheme.outline
-                            )
-                        )
-                    },
-                    modifier = Modifier.clip(
-                        if (!dhikrEnabled) RoundedCornerShape(20.dp)
-                        else RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 4.dp, bottomEnd = 4.dp)
-                    ),
-                    colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+                NotifSwitchRow(
+                    title = "Daily Reminder",
+                    subtitle = "Reminder for Subhanallahi wa bihamdihi ×100",
+                    checked = dhikrEnabled,
+                    shape = if (!dhikrEnabled) RoundedCornerShape(20.dp)
+                            else RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 4.dp, bottomEnd = 4.dp),
+                    onCheckedChange = { if (it) requestOrRun { viewModel.setDhikrEnabled(true) } else viewModel.setDhikrEnabled(false) }
                 )
-
-                AnimatedVisibility(
-                    visible = dhikrEnabled,
-                    enter = expandVertically(),
-                    exit = shrinkVertically()
-                ) {
+                AnimatedVisibility(visible = dhikrEnabled, enter = expandVertically(), exit = shrinkVertically()) {
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        NotifTimeRow(
+                            title = "Reminder Time", time = formatTime(dhikrHour1, dhikrMinute1),
+                            shape = RoundedCornerShape(4.dp)
+                        ) { openPicker("Dhikr Reminder Time", dhikrHour1, dhikrMinute1) { h, m -> viewModel.setDhikrTime1(h, m) } }
 
-                        ListItem(
-                            headlineContent = { Text("Reminder Time", fontWeight = FontWeight.SemiBold) },
-                            supportingContent = { Text(formatTime(dhikrHour1, dhikrMinute1)) },
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(4.dp))
-                                .clickable {
-                                    openPicker("Dhikr Reminder Time", dhikrHour1, dhikrMinute1) { h, m ->
-                                        viewModel.setDhikrTime1(h, m)
-                                    }
-                                },
-                            colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+                        NotifSwitchRow(
+                            title = "Second Reminder", subtitle = "Missed it? Get a follow-up alert",
+                            checked = dhikrSecondEnabled,
+                            shape = if (!dhikrSecondEnabled) RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 20.dp, bottomEnd = 20.dp)
+                                    else RoundedCornerShape(4.dp),
+                            onCheckedChange = { viewModel.setDhikrSecondEnabled(it) }
                         )
-
-                        ListItem(
-                            headlineContent = { Text("Second Reminder", fontWeight = FontWeight.SemiBold) },
-                            supportingContent = { Text("Missed it? Get a follow-up alert") },
-                            trailingContent = {
-                                Switch(
-                                    checked = dhikrSecondEnabled,
-                                    onCheckedChange = { viewModel.setDhikrSecondEnabled(it) },
-                                    colors = SwitchDefaults.colors(
-                                        uncheckedTrackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                                        uncheckedThumbColor = MaterialTheme.colorScheme.onSurface,
-                                        uncheckedBorderColor = MaterialTheme.colorScheme.outline
-                                    )
-                                )
-                            },
-                            modifier = Modifier.clip(
-                                if (!dhikrSecondEnabled) RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 20.dp, bottomEnd = 20.dp)
-                                else RoundedCornerShape(4.dp)
-                            ),
-                            colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
-                        )
-
-                        AnimatedVisibility(
-                            visible = dhikrSecondEnabled,
-                            enter = expandVertically(),
-                            exit = shrinkVertically()
-                        ) {
-                            ListItem(
-                                headlineContent = { Text("Second Reminder Time", fontWeight = FontWeight.SemiBold) },
-                                supportingContent = { Text(formatTime(dhikrHour2, dhikrMinute2)) },
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 20.dp, bottomEnd = 20.dp))
-                                    .clickable {
-                                        openPicker("Second Dhikr Reminder", dhikrHour2, dhikrMinute2) { h, m ->
-                                            viewModel.setDhikrTime2(h, m)
-                                        }
-                                    },
-                                colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
-                            )
+                        AnimatedVisibility(visible = dhikrSecondEnabled, enter = expandVertically(), exit = shrinkVertically()) {
+                            NotifTimeRow(
+                                title = "Second Reminder Time", time = formatTime(dhikrHour2, dhikrMinute2),
+                                shape = RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 20.dp, bottomEnd = 20.dp)
+                            ) { openPicker("Second Dhikr Reminder", dhikrHour2, dhikrMinute2) { h, m -> viewModel.setDhikrTime2(h, m) } }
                         }
                     }
                 }
@@ -338,24 +260,4 @@ fun NotificationSettingsScreen(
             Spacer(modifier = Modifier.height(100.dp))
         }
     }
-}
-
-@Composable
-private fun NotifSectionLabel(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 8.dp, bottom = 8.dp, top = 24.dp)
-    )
-}
-
-private fun formatTime(hour: Int, minute: Int): String {
-    val amPm = if (hour < 12) "AM" else "PM"
-    val h = when {
-        hour == 0 -> 12
-        hour > 12 -> hour - 12
-        else -> hour
-    }
-    return String.format(Locale.getDefault(), "%d:%02d %s", h, minute, amPm)
 }

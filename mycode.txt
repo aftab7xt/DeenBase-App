@@ -229,94 +229,25 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
-private val DarkColorScheme = darkColorScheme(
-    // 30% blue as the action color
-    primary                = DarkSecondary,
-    onPrimary              = Color.White,
-    primaryContainer       = Color(0xFF0D3F5C),
-    onPrimaryContainer     = DarkAccent,
-
-    secondary              = DarkSecondary,
-    onSecondary            = Color.White,
-    secondaryContainer     = Color(0xFF0A2D42),
-    onSecondaryContainer   = DarkAccent,
-
-    tertiary               = DarkSecondary,
-    onTertiary             = Color.White,
-    tertiaryContainer      = Color(0xFF0D3F5C),
-    onTertiaryContainer    = DarkAccent,
-
-    // 60% deep navy as all surfaces
-    background             = DarkBackground,
-    onBackground           = DarkAccent,
-
-    surface                = DarkSurface,
-    onSurface              = DarkAccent,
-    onSurfaceVariant       = Color(0xFF7A9BAD),
-
-    surfaceContainer       = DarkSurfaceContainer,
-    surfaceContainerLow    = DarkSurfaceContainerLow,
-    surfaceContainerHigh   = DarkSurfaceContainerHigh,
-    surfaceContainerHighest= DarkSurfaceContainerHighest,
-
-    outline                = DarkOutline,
-    outlineVariant         = DarkOutlineVariant,
-
-    error                  = Color(0xFFCF6679),
-    onError                = Color.White,
-)
-
-private val LightColorScheme = lightColorScheme(
-    // 30% blue as the action color
-    primary                = LightSecondary,
-    onPrimary              = Color.White,
-    primaryContainer       = Color(0xFFB3E4FF),
-    onPrimaryContainer     = LightAccent,
-
-    secondary              = LightSecondary,
-    onSecondary            = Color.White,
-    secondaryContainer     = Color(0xFFCCEAFA),
-    onSecondaryContainer   = LightAccent,
-
-    tertiary               = LightSecondary,
-    onTertiary             = Color.White,
-    tertiaryContainer      = Color(0xFFB3E4FF),
-    onTertiaryContainer    = LightAccent,
-
-    // 60% light blue-gray as all surfaces
-    background             = LightBackground,
-    onBackground           = LightAccent,
-
-    surface                = LightSurface,
-    onSurface              = LightAccent,
-    onSurfaceVariant       = Color(0xFF3D5166),
-
-    surfaceContainer       = LightSurfaceContainer,
-    surfaceContainerLow    = LightSurfaceContainerLow,
-    surfaceContainerHigh   = LightSurfaceContainerHigh,
-    surfaceContainerHighest= LightSurfaceContainerHighest,
-
-    outline                = LightOutline,
-    outlineVariant         = LightOutlineVariant,
-
-    error                  = Color(0xFFB3261E),
-    onError                = Color.White,
-)
-
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun DeenBaseTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = false,
+    oledMode: Boolean = false,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
+    val context = LocalContext.current
+
+    val baseScheme = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+    } else {
+        if (darkTheme) darkColorScheme() else lightColorScheme()
+    }
+
+    val colorScheme = if (oledMode && darkTheme) {
+        baseScheme.copy(background = Color.Black)
+    } else {
+        baseScheme
     }
 
     MaterialExpressiveTheme(
@@ -326,44 +257,16 @@ fun DeenBaseTheme(
         content = content
     )
 }
-package com.deenbase.app.ui.theme
+package com.deenbase.app.ui
 
-import androidx.compose.ui.graphics.Color
+import androidx.compose.runtime.compositionLocalOf
 
-// ── Light Mode Palette (60/30/10) ────────────────────────────────────────────
-val LightPrimary   = Color(0xFFCCD4E0)  // 60% — main surfaces
-val LightSecondary = Color(0xFF14AAF5)  // 30% — interactive / accent
-val LightAccent    = Color(0xFF141E29)  // 10% — text / dark elements
-
-// ── Dark Mode Palette (60/30/10) ─────────────────────────────────────────────
-val DarkPrimary    = Color(0xFF03141C)  // 60% — main surfaces
-val DarkSecondary  = Color(0xFF1B9FE0)  // 30% — interactive / accent
-val DarkAccent     = Color(0xFFCED7DB)  // 10% — text / light elements
-
-// ── Derived surface shades ────────────────────────────────────────────────────
-// Light
-val LightBackground             = Color(0xFFEEF2F6)  // slightly lighter than primary
-val LightSurface                = LightPrimary
-val LightSurfaceContainer       = Color(0xFFC2CCDA)
-val LightSurfaceContainerLow    = Color(0xFFD8DFE9)
-val LightSurfaceContainerHigh   = Color(0xFFB8C2D2)
-val LightSurfaceContainerHighest= Color(0xFFABB7C8)
-val LightOutline                = Color(0xFF8A97A8)
-val LightOutlineVariant         = Color(0xFFCDD5E0)
-
-// Dark
-val DarkBackground              = Color(0xFF010C12)  // deeper than primary
-val DarkSurface                 = DarkPrimary
-val DarkSurfaceContainer        = Color(0xFF071E2B)
-val DarkSurfaceContainerLow     = Color(0xFF051622)
-val DarkSurfaceContainerHigh    = Color(0xFF0A2535)
-val DarkSurfaceContainerHighest = Color(0xFF0F2E40)
-val DarkOutline                 = Color(0xFF1B4A66)
-val DarkOutlineVariant          = Color(0xFF0A2535)
+val LocalHapticsEnabled = compositionLocalOf { true }
 package com.deenbase.app
 
 import android.os.Build
 import android.os.Bundle
+import com.deenbase.app.BuildConfig
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
@@ -389,6 +292,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -425,6 +329,8 @@ import com.deenbase.app.features.hadith.viewmodel.HadithViewModel
 import com.deenbase.app.features.onboarding.ui.OnboardingScreen
 import com.deenbase.app.features.home.ui.HomeScreen
 import com.deenbase.app.features.quran.ui.QuranScreen
+import com.deenbase.app.features.quran.ui.SavedVersesScreen
+import com.deenbase.app.features.settings.ui.AboutScreen
 import com.deenbase.app.features.settings.ui.AppPreferencesScreen
 import com.deenbase.app.features.settings.ui.NotificationSettingsScreen
 import com.deenbase.app.features.settings.ui.QuranGoalScreen
@@ -435,11 +341,12 @@ import com.deenbase.app.features.tasbih.ui.SubhanallahScreen
 import com.deenbase.app.features.tasbih.viewmodel.TasbihViewModel
 import com.deenbase.app.ui.theme.DeenBaseTheme
 import com.deenbase.app.data.SettingsManager
+import com.deenbase.app.update.UpdateViewModel
 
 sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
-    object Home : Screen("home", "Home", Icons.Filled.Home)
-    object Quran : Screen("quran", "Quran", Icons.AutoMirrored.Filled.MenuBook)
-    object Dhikr : Screen("dhikr", "Dhikr", Icons.Filled.HistoryEdu)
+    object Home     : Screen("home",     "Home",     Icons.Filled.Home)
+    object Quran    : Screen("quran",    "Quran",    Icons.AutoMirrored.Filled.MenuBook)
+    object Dhikr    : Screen("dhikr",    "Dhikr",    Icons.Filled.HistoryEdu)
     object Settings : Screen("settings", "Settings", Icons.Filled.Settings)
 }
 
@@ -450,60 +357,69 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         com.deenbase.app.notifications.NotificationHelper.createChannels(this)
         com.deenbase.app.notifications.NotificationHelper.scheduleAdhkarAlarms(this)
-        // NOTE: Notification permission is now requested during onboarding (Notifications page).
         val navigateTo = intent?.getStringExtra("navigate_to")
         setContent {
             val settingsManager = remember { SettingsManager(applicationContext) }
             val themeMode by settingsManager.themeMode.collectAsStateWithLifecycle(initialValue = "system")
             val darkTheme = when (themeMode) {
-                "dark" -> true
+                "dark"  -> true
                 "light" -> false
-                else -> isSystemInDarkTheme()
+                else    -> isSystemInDarkTheme()
             }
             DeenBaseTheme(darkTheme = darkTheme) {
                 val view = LocalView.current
                 SideEffect {
                     val window = (view.context as ComponentActivity).window
-                    WindowInsetsControllerCompat(window, view).isAppearanceLightStatusBars = !darkTheme
+                    WindowInsetsControllerCompat(window, view).isAppearanceLightStatusBars    = !darkTheme
                     WindowInsetsControllerCompat(window, view).isAppearanceLightNavigationBars = !darkTheme
                 }
+
+                val updateViewModel: UpdateViewModel = viewModel()
+                val updateState by updateViewModel.state.collectAsStateWithLifecycle()
+                val context = LocalContext.current
+
+                if (updateState.showDialog) {
+                    AlertDialog(
+                        onDismissRequest = { updateViewModel.dismissDialog() },
+                        title = { Text("Update Available") },
+                        text  = { Text("Version ${updateState.latestVersion} is ready. Update now for the latest features and fixes.") },
+                        confirmButton = { Button(onClick = { updateViewModel.startDownload(context) }) { Text("Update Now") } },
+                        dismissButton = { TextButton(onClick = { updateViewModel.dismissDialog() }) { Text("Remind Me Later") } }
+                    )
+                }
+
+                if (updateState.noUpdateFound) {
+                    AlertDialog(
+                        onDismissRequest = { updateViewModel.dismissNoUpdate() },
+                        title = { Text("You're up to date") },
+                        text  = { Text("DeenBase ${BuildConfig.VERSION_NAME} is the latest version.") },
+                        confirmButton = { Button(onClick = { updateViewModel.dismissNoUpdate() }) { Text("OK") } }
+                    )
+                }
+
                 val navController = rememberNavController()
                 val screens = listOf(Screen.Home, Screen.Quran, Screen.Dhikr, Screen.Settings)
 
-                // ── Onboarding gate ───────────────────────────────────────────
-                val onboardingDone by settingsManager.onboardingDone
-                    .collectAsStateWithLifecycle(initialValue = null)
+                val onboardingDone by settingsManager.onboardingDone.collectAsStateWithLifecycle(initialValue = null)
 
                 when (onboardingDone) {
-                    null -> {
-                        // Still reading DataStore — show blank to avoid flash
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(MaterialTheme.colorScheme.background)
-                        )
-                    }
-                    false -> {
-                        OnboardingScreen(onFinish = { /* recompose handles transition */ })
-                    }
-                    else -> {
+                    null  -> Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
+                    false -> OnboardingScreen(onFinish = {})
+                    else  -> {
 
-                // Handle notification deep links
                 LaunchedEffect(navigateTo) {
                     when (navigateTo) {
                         "goal_quran" -> {
                             val sm = SettingsManager(applicationContext)
                             val surahId = sm.goalSurahId.first()
-                            val verse = sm.goalVerse.first()
+                            val verse   = sm.goalVerse.first()
                             navController.navigate("goal_surah/$surahId/$verse")
                         }
                         "subhanallah" -> navController.navigate("subhanallah")
-                        "dhikr" -> navController.navigate("dhikr")
+                        "dhikr"       -> navController.navigate("dhikr")
                     }
                 }
 
-                // 1. Track destination IMMEDIATELY when navigation starts (not after settle)
-                //    This prevents the nav bar being visible for ~10 frames during push navigation
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentRoute = navBackStackEntry?.destination?.route
 
@@ -516,24 +432,25 @@ class MainActivity : ComponentActivity() {
                     onDispose { navController.removeOnDestinationChangedListener(listener) }
                 }
 
-                val isBottomBarVisible = currentRoute?.startsWith("browse_surah") != true &&
-                    currentRoute?.startsWith("goal_surah") != true &&
-                    currentRoute?.startsWith("dhikr_detail") != true &&
-                    currentRoute != "quran_settings" &&
-                    currentRoute != "quran_goal" &&
-                    currentRoute != "app_preferences" &&
+                val isBottomBarVisible =
+                    currentRoute?.startsWith("browse_surah")  != true &&
+                    currentRoute?.startsWith("goal_surah")    != true &&
+                    currentRoute?.startsWith("dhikr_detail")  != true &&
+                    currentRoute != "quran_settings"     &&
+                    currentRoute != "quran_goal"         &&
+                    currentRoute != "app_preferences"    &&
                     currentRoute != "notification_settings" &&
-                    currentRoute != "tasbih" &&
-                    currentRoute != "subhanallah" &&
-                    currentRoute != "hadith" &&
-                    currentRoute != "hadith_chapters" &&
-                    currentRoute != "hadith_list" &&
-                    currentRoute != "hadith_detail" &&
-                    currentRoute != "hadith_search"
+                    currentRoute != "about"              &&
+                    currentRoute != "tasbih"             &&
+                    currentRoute != "subhanallah"        &&
+                    currentRoute != "hadith"             &&
+                    currentRoute != "hadith_chapters"    &&
+                    currentRoute != "hadith_list"        &&
+                    currentRoute != "hadith_detail"      &&
+                    currentRoute != "hadith_search"      &&
+                    currentRoute != "saved_verses"
 
-                Scaffold(
-                    modifier = Modifier.fillMaxSize(),
-                ) { innerPadding ->
+                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     Box(modifier = Modifier.fillMaxSize()) {
                         NavHost(
                             navController = navController,
@@ -551,37 +468,44 @@ class MainActivity : ComponentActivity() {
                                 enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
                                 popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
                             ) {
-                                val tasbihViewModel: TasbihViewModel = viewModel()
-                                TasbihScreen(viewModel = tasbihViewModel)
+                                TasbihScreen(viewModel = viewModel())
                             }
                             composable(
                                 route = "subhanallah",
                                 enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
                                 popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
                             ) {
-                                SubhanallahScreen(
-                                    onNavigateBack = { navController.popBackStack() }
-                                )
+                                SubhanallahScreen(onNavigateBack = { navController.popBackStack() })
                             }
-                            composable(Screen.Quran.route) { 
+                            composable(Screen.Quran.route) {
                                 QuranScreen(
                                     onSurahClick = { surahId, surahName ->
                                         navController.navigate("browse_surah/$surahId/${surahName.replace(" ", "_")}")
+                                    },
+                                    onSavedClick = { navController.navigate("saved_verses") }
+                                )
+                            }
+                            composable(
+                                route = "saved_verses",
+                                enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
+                                popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
+                            ) {
+                                SavedVersesScreen(
+                                    onNavigateBack = { navController.popBackStack() },
+                                    onVerseClick = { surahId, verseNumber, surahName ->
+                                        navController.navigate("browse_surah/$surahId/${surahName.replace(" ", "_")}")
                                     }
-                                ) 
+                                )
                             }
                             composable(
                                 route = "browse_surah/{surahId}/{surahName}",
                                 enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
                                 popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
                             ) { backStackEntry ->
-                                val surahId = backStackEntry.arguments?.getString("surahId")?.toIntOrNull() ?: 1
+                                val surahId   = backStackEntry.arguments?.getString("surahId")?.toIntOrNull() ?: 1
                                 val surahName = backStackEntry.arguments?.getString("surahName")?.replace("_", " ") ?: ""
                                 com.deenbase.app.features.quran.ui.ReadingScreen(
-                                    surahId = surahId,
-                                    surahName = surahName,
-                                    startVerse = 1,
-                                    trackGoal = false,
+                                    surahId = surahId, surahName = surahName, startVerse = 1, trackGoal = false,
                                     onNavigateBack = { navController.popBackStack() }
                                 )
                             }
@@ -590,12 +514,10 @@ class MainActivity : ComponentActivity() {
                                 enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
                                 popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
                             ) { backStackEntry ->
-                                val surahId = backStackEntry.arguments?.getString("surahId")?.toIntOrNull() ?: 1
+                                val surahId    = backStackEntry.arguments?.getString("surahId")?.toIntOrNull() ?: 1
                                 val startVerse = backStackEntry.arguments?.getString("startVerse")?.toIntOrNull() ?: 1
                                 com.deenbase.app.features.quran.ui.ReadingScreen(
-                                    surahId = surahId,
-                                    startVerse = startVerse,
-                                    trackGoal = true,
+                                    surahId = surahId, startVerse = startVerse, trackGoal = true,
                                     onNavigateBack = { navController.popBackStack() },
                                     onNextSurah = { nextId ->
                                         navController.popBackStack()
@@ -605,9 +527,7 @@ class MainActivity : ComponentActivity() {
                             }
                             composable(Screen.Dhikr.route) {
                                 DhikrScreen(
-                                    onDhikrClick = { dhikrId, period ->
-                                        navController.navigate("dhikr_detail/$dhikrId/$period")
-                                    },
+                                    onDhikrClick = { dhikrId, period -> navController.navigate("dhikr_detail/$dhikrId/$period") },
                                     onSubhanallahClick = { navController.navigate("subhanallah") },
                                     onTasbihClick = { navController.navigate("tasbih") }
                                 )
@@ -618,43 +538,46 @@ class MainActivity : ComponentActivity() {
                                 popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
                             ) { backStackEntry ->
                                 val dhikrId = backStackEntry.arguments?.getString("dhikrId") ?: "bismillah"
-                                val period = backStackEntry.arguments?.getString("period") ?: "morning"
+                                val period  = backStackEntry.arguments?.getString("period") ?: "morning"
                                 val content = when (dhikrId) {
                                     "bismillah" -> getBismillahContent(period)
-                                    "raditu" -> getRadituContent(period)
-                                    else -> getBismillahContent(period)
+                                    "raditu"    -> getRadituContent(period)
+                                    else        -> getBismillahContent(period)
                                 }
-                                DhikrDetailScreen(
-                                    content = content,
-                                    onNavigateBack = { navController.popBackStack() }
+                                DhikrDetailScreen(content = content, onNavigateBack = { navController.popBackStack() })
+                            }
+                            composable(Screen.Settings.route) {
+                                SettingsScreen(
+                                    onNavigateBack             = { navController.popBackStack() },
+                                    onQuranSettingsClick       = { navController.navigate("quran_settings") },
+                                    onQuranGoalClick           = { navController.navigate("quran_goal") },
+                                    onAppPreferencesClick      = { navController.navigate("app_preferences") },
+                                    onNotificationSettingsClick = { navController.navigate("notification_settings") },
+                                    onAboutClick               = { navController.navigate("about") },
+                                    onCheckForUpdatesClick     = { updateViewModel.checkForUpdate(manual = true) },
+                                    isCheckingForUpdates       = updateState.isChecking
                                 )
                             }
-                            composable(Screen.Settings.route) { 
-                                SettingsScreen(
-                                    onNavigateBack = { navController.popBackStack() },
-                                    onQuranSettingsClick = { navController.navigate("quran_settings") },
-                                    onQuranGoalClick = { navController.navigate("quran_goal") },
-                                    onAppPreferencesClick = { navController.navigate("app_preferences") },
-                                    onNotificationSettingsClick = { navController.navigate("notification_settings") }
-                                ) 
+                            composable(
+                                route = "about",
+                                enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
+                                popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
+                            ) {
+                                AboutScreen(onNavigateBack = { navController.popBackStack() })
                             }
                             composable(
                                 route = "app_preferences",
                                 enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
                                 popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
                             ) {
-                                AppPreferencesScreen(
-                                    onNavigateBack = { navController.popBackStack() }
-                                )
+                                AppPreferencesScreen(onNavigateBack = { navController.popBackStack() })
                             }
                             composable(
                                 route = "quran_settings",
                                 enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
                                 popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
                             ) {
-                                QuranSettingsScreen(
-                                    onNavigateBack = { navController.popBackStack() }
-                                )
+                                QuranSettingsScreen(onNavigateBack = { navController.popBackStack() })
                             }
                             composable(
                                 route = "quran_goal",
@@ -668,16 +591,14 @@ class MainActivity : ComponentActivity() {
                                 enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
                                 popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
                             ) {
-                                NotificationSettingsScreen(
-                                    onNavigateBack = { navController.popBackStack() }
-                                )
+                                NotificationSettingsScreen(onNavigateBack = { navController.popBackStack() })
                             }
                             composable(
                                 route = "hadith",
-                                enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
-                                exitTransition = { slideOutHorizontally { -it } + fadeOut(tween(300)) },
+                                enterTransition  = { slideInHorizontally { it }  + fadeIn(tween(300)) },
+                                exitTransition   = { slideOutHorizontally { -it } + fadeOut(tween(300)) },
                                 popEnterTransition = { slideInHorizontally { -it } + fadeIn(tween(300)) },
-                                popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
+                                popExitTransition  = { slideOutHorizontally { it }  + fadeOut(tween(300)) }
                             ) {
                                 val hadithViewModel: HadithViewModel = viewModel()
                                 HadithScreen(
@@ -692,14 +613,12 @@ class MainActivity : ComponentActivity() {
                             }
                             composable(
                                 route = "hadith_chapters",
-                                enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
-                                exitTransition = { slideOutHorizontally { -it } + fadeOut(tween(300)) },
+                                enterTransition  = { slideInHorizontally { it }  + fadeIn(tween(300)) },
+                                exitTransition   = { slideOutHorizontally { -it } + fadeOut(tween(300)) },
                                 popEnterTransition = { slideInHorizontally { -it } + fadeIn(tween(300)) },
-                                popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
+                                popExitTransition  = { slideOutHorizontally { it }  + fadeOut(tween(300)) }
                             ) {
-                                val hadithViewModel: HadithViewModel = viewModel(
-                                    viewModelStoreOwner = navController.getBackStackEntry("hadith")
-                                )
+                                val hadithViewModel: HadithViewModel = viewModel(viewModelStoreOwner = navController.getBackStackEntry("hadith"))
                                 ChaptersScreen(
                                     onNavigateBack = { navController.popBackStack() },
                                     onChapterClick = { chapter ->
@@ -711,14 +630,12 @@ class MainActivity : ComponentActivity() {
                             }
                             composable(
                                 route = "hadith_list",
-                                enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
-                                exitTransition = { slideOutHorizontally { -it } + fadeOut(tween(300)) },
+                                enterTransition  = { slideInHorizontally { it }  + fadeIn(tween(300)) },
+                                exitTransition   = { slideOutHorizontally { -it } + fadeOut(tween(300)) },
                                 popEnterTransition = { slideInHorizontally { -it } + fadeIn(tween(300)) },
-                                popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
+                                popExitTransition  = { slideOutHorizontally { it }  + fadeOut(tween(300)) }
                             ) {
-                                val hadithViewModel: HadithViewModel = viewModel(
-                                    viewModelStoreOwner = navController.getBackStackEntry("hadith")
-                                )
+                                val hadithViewModel: HadithViewModel = viewModel(viewModelStoreOwner = navController.getBackStackEntry("hadith"))
                                 HadithListScreen(
                                     onNavigateBack = { navController.popBackStack() },
                                     onHadithClick = { hadith ->
@@ -730,14 +647,12 @@ class MainActivity : ComponentActivity() {
                             }
                             composable(
                                 route = "hadith_search",
-                                enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
-                                exitTransition = { slideOutHorizontally { -it } + fadeOut(tween(300)) },
+                                enterTransition  = { slideInHorizontally { it }  + fadeIn(tween(300)) },
+                                exitTransition   = { slideOutHorizontally { -it } + fadeOut(tween(300)) },
                                 popEnterTransition = { slideInHorizontally { -it } + fadeIn(tween(300)) },
-                                popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
+                                popExitTransition  = { slideOutHorizontally { it }  + fadeOut(tween(300)) }
                             ) {
-                                val hadithViewModel: HadithViewModel = viewModel(
-                                    viewModelStoreOwner = navController.getBackStackEntry("hadith")
-                                )
+                                val hadithViewModel: HadithViewModel = viewModel(viewModelStoreOwner = navController.getBackStackEntry("hadith"))
                                 HadithSearchScreen(
                                     onNavigateBack = { navController.popBackStack() },
                                     onHadithClick = { hadith ->
@@ -749,43 +664,31 @@ class MainActivity : ComponentActivity() {
                             }
                             composable(
                                 route = "hadith_detail",
-                                enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
-                                exitTransition = { slideOutHorizontally { -it } + fadeOut(tween(300)) },
+                                enterTransition  = { slideInHorizontally { it }  + fadeIn(tween(300)) },
+                                exitTransition   = { slideOutHorizontally { -it } + fadeOut(tween(300)) },
                                 popEnterTransition = { slideInHorizontally { -it } + fadeIn(tween(300)) },
-                                popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
+                                popExitTransition  = { slideOutHorizontally { it }  + fadeOut(tween(300)) }
                             ) {
-                                val hadithViewModel: HadithViewModel = viewModel(
-                                    viewModelStoreOwner = navController.getBackStackEntry("hadith")
-                                )
+                                val hadithViewModel: HadithViewModel = viewModel(viewModelStoreOwner = navController.getBackStackEntry("hadith"))
                                 val selectedHadith = hadithViewModel.selectedHadith.collectAsState().value
                                 selectedHadith?.let {
-                                    HadithDetailScreen(
-                                        hadith = it,
-                                        onNavigateBack = { navController.popBackStack() }
-                                    )
+                                    HadithDetailScreen(hadith = it, onNavigateBack = { navController.popBackStack() })
                                 }
                             }
                         }
 
-                        // 2. Wrap the BottomBar in AnimatedVisibility so it slides away cleanly
                         AnimatedVisibility(
                             visible = isBottomBarVisible,
-                            enter = slideInVertically(animationSpec = tween(durationMillis = 350, easing = androidx.compose.animation.core.FastOutSlowInEasing)) { it } + fadeIn(tween(350)),
-                            exit = slideOutVertically(animationSpec = tween(durationMillis = 350, easing = androidx.compose.animation.core.FastOutSlowInEasing)) { it } + fadeOut(tween(350)),
-                            modifier = Modifier
-                                .align(Alignment.BottomCenter)
-                                .navigationBarsPadding()
-                                .padding(bottom = 16.dp)
+                            enter = slideInVertically(animationSpec = tween(350, easing = androidx.compose.animation.core.FastOutSlowInEasing)) { it } + fadeIn(tween(350)),
+                            exit  = slideOutVertically(animationSpec = tween(350, easing = androidx.compose.animation.core.FastOutSlowInEasing)) { it } + fadeOut(tween(350)),
+                            modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 16.dp)
                         ) {
-                            FloatingBottomBar(
-                                screens = screens,
-                                navController = navController
-                            )
+                            FloatingBottomBar(screens = screens, navController = navController)
                         }
                     }
                 } // end Scaffold
-                } // end else (onboarding done)
-                } // end when (onboardingDone)
+                } // end else
+                } // end when
             }
         }
     }
@@ -799,31 +702,28 @@ fun FloatingBottomBar(
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
-    
+
     val selectedIndex = screens.indexOfFirst { screen ->
-        val isExactMatch = currentDestination?.route == screen.route
-        val isReadingSurah = screen.route == Screen.Quran.route && (currentDestination?.route?.startsWith("browse_surah") == true || currentDestination?.route?.startsWith("goal_surah") == true)
-        isExactMatch || isReadingSurah
+        currentDestination?.route == screen.route ||
+        (screen.route == Screen.Quran.route && (
+            currentDestination?.route?.startsWith("browse_surah") == true ||
+            currentDestination?.route?.startsWith("goal_surah")   == true ||
+            currentDestination?.route == "saved_verses"))
     }.coerceAtLeast(0)
 
-    val itemWidth = 72.dp
-    val spacing = 12.dp
+    val itemWidth   = 72.dp
+    val spacing     = 12.dp
     val outerPadding = 8.dp
-    val barWidth = (itemWidth * screens.size) + (spacing * (screens.size - 1)) + (outerPadding * 2)
+    val barWidth    = (itemWidth * screens.size) + (spacing * (screens.size - 1)) + (outerPadding * 2)
 
     val indicatorOffset by animateDpAsState(
         targetValue = (itemWidth + spacing) * selectedIndex,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioLowBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
+        animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessLow),
         label = "IndicatorSlide"
     )
 
     Surface(
-        modifier = modifier
-            .width(barWidth)
-            .height(64.dp),
+        modifier = modifier.width(barWidth).height(64.dp),
         shape = CircleShape,
         color = MaterialTheme.colorScheme.surfaceContainer,
         tonalElevation = 6.dp,
@@ -833,8 +733,7 @@ fun FloatingBottomBar(
             Box(
                 modifier = Modifier
                     .offset(x = indicatorOffset)
-                    .width(itemWidth)
-                    .height(48.dp)
+                    .width(itemWidth).height(48.dp)
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.secondaryContainer)
             )
@@ -844,46 +743,38 @@ fun FloatingBottomBar(
                 horizontalArrangement = Arrangement.spacedBy(spacing)
             ) {
                 screens.forEach { screen ->
-                    val isSelected = currentDestination?.route == screen.route || 
-                                     (screen.route == Screen.Quran.route && (currentDestination?.route?.startsWith("browse_surah") == true || currentDestination?.route?.startsWith("goal_surah") == true)) ||
-                                     (screen.route == Screen.Dhikr.route && currentDestination?.route?.startsWith("dhikr_detail") == true)
+                    val isSelected = currentDestination?.route == screen.route ||
+                        (screen.route == Screen.Quran.route && (
+                            currentDestination?.route?.startsWith("browse_surah") == true ||
+                            currentDestination?.route?.startsWith("goal_surah")   == true)) ||
+                        (screen.route == Screen.Dhikr.route &&
+                            currentDestination?.route?.startsWith("dhikr_detail") == true)
                     val interactionSource = remember { MutableInteractionSource() }
                     Box(
                         modifier = Modifier
-                            .width(itemWidth)
-                            .height(48.dp)
+                            .width(itemWidth).height(48.dp)
                             .clip(CircleShape)
-                            .clickable(
-                                interactionSource = interactionSource,
-                                indication = null,
-                                onClick = {
-                                    navController.navigate(screen.route) {
-                                        popUpTo(navController.graph.startDestinationId) { saveState = true }
-                                        launchSingleTop = true
-                                        restoreState = true
-                                    }
+                            .clickable(interactionSource = interactionSource, indication = null) {
+                                navController.navigate(screen.route) {
+                                    popUpTo(navController.graph.startDestinationId) { saveState = true }
+                                    launchSingleTop = true
+                                    restoreState = true
                                 }
-                            ),
+                            },
                         contentAlignment = Alignment.Center
                     ) {
                         if (screen.route == Screen.Dhikr.route) {
                             Icon(
                                 painter = painterResource(id = R.drawable.ic_dhikr),
                                 contentDescription = screen.label,
-                                tint = if (isSelected)
-                                    MaterialTheme.colorScheme.onSecondaryContainer
-                                else
-                                    MaterialTheme.colorScheme.onSurfaceVariant,
+                                tint = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(24.dp)
                             )
                         } else {
                             Icon(
                                 imageVector = screen.icon,
                                 contentDescription = screen.label,
-                                tint = if (isSelected)
-                                    MaterialTheme.colorScheme.onSecondaryContainer
-                                else
-                                    MaterialTheme.colorScheme.onSurfaceVariant,
+                                tint = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(24.dp)
                             )
                         }
@@ -921,6 +812,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.deenbase.app.R
 import com.deenbase.app.features.tasbih.viewmodel.SubhanallahViewModel
+import com.deenbase.app.ui.LocalHapticsEnabled
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -934,6 +826,7 @@ fun SubhanallahScreen(
     viewModel: SubhanallahViewModel = viewModel()
 ) {
     val haptic = LocalHapticFeedback.current
+    val hapticsEnabled = LocalHapticsEnabled.current
     val scope = rememberCoroutineScope()
 
     val count by viewModel.count.collectAsState()
@@ -942,7 +835,6 @@ fun SubhanallahScreen(
     var showCompletionDialog by remember { mutableStateOf(false) }
     var hasShownDialog by remember { mutableStateOf(false) }
 
-    // Read arabicFontStyle from settings to match reading screen font
     val arabicFont = remember {
         FontFamily(Font(R.font.indopak_nastaleeq))
     }
@@ -954,7 +846,6 @@ fun SubhanallahScreen(
         }
     }
 
-    // --- TAP BUTTON ---
     val tapInteractionSource = remember { MutableInteractionSource() }
     val isTapPhysicallyPressed by tapInteractionSource.collectIsPressedAsState()
     var forceSquishTap by remember { mutableStateOf(false) }
@@ -977,7 +868,6 @@ fun SubhanallahScreen(
         label = "Progress"
     )
 
-    // ── Completion dialog ────────────────────────────────────────────────────
     if (showCompletionDialog) {
         AlertDialog(
             onDismissRequest = {},
@@ -1035,12 +925,7 @@ fun SubhanallahScreen(
         )
     }
 
-    // ── Main layout ──────────────────────────────────────────────────────────
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-    ) {
-        // Back button — top-left, properly scoped inside Box
+    Box(modifier = Modifier.fillMaxSize()) {
         IconButton(
             onClick = onNavigateBack,
             modifier = Modifier
@@ -1051,7 +936,6 @@ fun SubhanallahScreen(
             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
         }
 
-        // Main content column
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -1062,8 +946,6 @@ fun SubhanallahScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceEvenly
         ) {
-
-            // ── Progress ring + count ────────────────────────────────────
             Box(contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(
                     progress = { animatedProgress },
@@ -1094,7 +976,6 @@ fun SubhanallahScreen(
                 }
             }
 
-            // ── Arabic dhikr text ────────────────────────────────────────
             Text(
                 text = "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ",
                 fontFamily = arabicFont,
@@ -1104,12 +985,11 @@ fun SubhanallahScreen(
                 textAlign = TextAlign.Center
             )
 
-            // ── TAP button — pill, same width as circle ──────────────────
             FilledTonalButton(
                 onClick = {
                     if (!isComplete) {
                         viewModel.increment()
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        if (hapticsEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         scope.launch {
                             forceSquishTap = true
                             delay(90)
@@ -1144,7 +1024,6 @@ fun SubhanallahScreen(
                 )
             }
 
-            // ── Hadith — two cards with 2dp gap ──────────────────────────
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(2.dp)
@@ -1218,6 +1097,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.deenbase.app.features.tasbih.viewmodel.TasbihViewModel
+import com.deenbase.app.ui.LocalHapticsEnabled
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -1225,10 +1105,10 @@ import kotlinx.coroutines.launch
 @Composable
 fun TasbihScreen(viewModel: TasbihViewModel) {
     val haptic = LocalHapticFeedback.current
+    val hapticsEnabled = LocalHapticsEnabled.current
     val count = viewModel.count.value
     val scope = rememberCoroutineScope()
 
-    // --- TAP BUTTON STATE ---
     val tapInteractionSource = remember { MutableInteractionSource() }
     val isTapPhysicallyPressed by tapInteractionSource.collectIsPressedAsState()
     var forceSquishTap by remember { mutableStateOf(false) }
@@ -1239,14 +1119,12 @@ fun TasbihScreen(viewModel: TasbihViewModel) {
         animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
         label = "TapButtonScale"
     )
-
     val tapCornerRadius by animateDpAsState(
         targetValue = if (isTapSquished) 24.dp else 75.dp,
         animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
         label = "TapButtonShape"
     )
 
-    // --- RESET BUTTON STATE ---
     val resetInteractionSource = remember { MutableInteractionSource() }
     val isResetPhysicallyPressed by resetInteractionSource.collectIsPressedAsState()
     var forceSquishReset by remember { mutableStateOf(false) }
@@ -1257,9 +1135,7 @@ fun TasbihScreen(viewModel: TasbihViewModel) {
         animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
         label = "ResetButtonScale"
     )
-
     val resetCornerRadius by animateDpAsState(
-        // CHANGED: 24.dp is exactly half of the 48.dp height, making a perfect pill without rendering glitches.
         targetValue = if (isResetSquished) 12.dp else 24.dp,
         animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
         label = "ResetButtonShape"
@@ -1279,22 +1155,20 @@ fun TasbihScreen(viewModel: TasbihViewModel) {
             Text(
                 text = count.toString(),
                 style = MaterialTheme.typography.displayLarge.copy(
-                    fontSize = 160.sp, 
+                    fontSize = 160.sp,
                     lineHeight = 160.sp,
                     fontWeight = FontWeight.Black,
-                    fontFeatureSettings = "tnum" 
+                    fontFeatureSettings = "tnum"
                 ),
                 color = MaterialTheme.colorScheme.primary
             )
 
             Spacer(modifier = Modifier.height(50.dp))
 
-            // THE TAP BUTTON
             LargeFloatingActionButton(
                 onClick = {
                     viewModel.increment()
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    
+                    if (hapticsEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     scope.launch {
                         forceSquishTap = true
                         delay(90)
@@ -1305,12 +1179,12 @@ fun TasbihScreen(viewModel: TasbihViewModel) {
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                 modifier = Modifier
-                    .size(150.dp) 
-                    .scale(tapScale), 
+                    .size(150.dp)
+                    .scale(tapScale),
                 shape = RoundedCornerShape(tapCornerRadius)
             ) {
                 Text(
-                    "TAP", 
+                    "TAP",
                     style = MaterialTheme.typography.headlineMedium.copy(
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 2.sp
@@ -1320,12 +1194,10 @@ fun TasbihScreen(viewModel: TasbihViewModel) {
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // THE RESET BUTTON
             FilledTonalButton(
-                onClick = { 
+                onClick = {
                     viewModel.reset()
-                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    
+                    if (hapticsEnabled) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     scope.launch {
                         forceSquishReset = true
                         delay(90)
@@ -1334,19 +1206,18 @@ fun TasbihScreen(viewModel: TasbihViewModel) {
                 },
                 interactionSource = resetInteractionSource,
                 shape = RoundedCornerShape(resetCornerRadius),
-                contentPadding = PaddingValues(0.dp), // CHANGED: Removes internal shifting padding
+                contentPadding = PaddingValues(0.dp),
                 modifier = Modifier
-                    .width(120.dp) // CHANGED: Fixed width
-                    .height(48.dp) // CHANGED: Fixed height
+                    .width(120.dp)
+                    .height(48.dp)
                     .scale(resetScale)
             ) {
                 Text(
-                    "RESET", 
+                    "RESET",
                     style = MaterialTheme.typography.labelLarge.copy(letterSpacing = 1.sp)
-                    // CHANGED: Removed the padding modifier on the text since the button size is locked
                 )
             }
-            
+
             Spacer(modifier = Modifier.height(100.dp))
         }
     }
@@ -1424,6 +1295,8 @@ class SubhanallahViewModel(app: Application) : AndroidViewModel(app) {
 }
 package com.deenbase.app.features.quran.ui
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -1431,14 +1304,18 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material3.*
 import androidx.compose.material3.MaterialTheme.motionScheme
 import androidx.compose.runtime.*
-import androidx.compose.runtime.getValue // Explicitly added to fix delegate error
-import androidx.compose.runtime.collectAsState // Explicitly added to fix flow error
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.Font
@@ -1455,21 +1332,34 @@ import com.deenbase.app.features.quran.viewmodel.QuranViewModel
 @Composable
 fun QuranScreen(
     viewModel: QuranViewModel = viewModel(),
-    onSurahClick: (Int, String) -> Unit
+    onSurahClick: (Int, String) -> Unit,
+    onSavedClick: () -> Unit = {}
 ) {
     val surahs by viewModel.surahs.collectAsState()
-    // Hoist font creation here — NOT inside each list item
     val surahNamesFont = remember { FontFamily(Font(R.font.surah_names)) }
 
-    // 1. Create the gradient brush from background color to transparent
     val gradientBrush = Brush.verticalGradient(
         colors = listOf(MaterialTheme.colorScheme.background, Color.Transparent)
+    )
+
+    // ── Entrance animation ────────────────────────────────────────────────────
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(surahs) { if (surahs.isNotEmpty()) visible = true }
+
+    val listAlpha by animateFloatAsState(
+        targetValue = if (visible) 1f else 0f,
+        animationSpec = tween(durationMillis = 400, delayMillis = 60),
+        label = "listAlpha"
+    )
+    val listScale by animateFloatAsState(
+        targetValue = if (visible) 1f else 0.97f,
+        animationSpec = tween(durationMillis = 400, delayMillis = 60),
+        label = "listScale"
     )
 
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                // 2. Apply the gradient brush directly to the TopAppBar modifier
                 modifier = Modifier.background(brush = gradientBrush),
                 title = {
                     Text(
@@ -1479,15 +1369,23 @@ fun QuranScreen(
                     )
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = Color.Transparent, // Gradient handles the background now
+                    containerColor = Color.Transparent,
                     scrolledContainerColor = Color.Transparent
-                )
+                ),
+                actions = {
+                    IconButton(onClick = onSavedClick) {
+                        Icon(
+                            imageVector = Icons.Filled.BookmarkBorder,
+                            contentDescription = "Saved Verses",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
             )
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
         if (surahs.isEmpty()) {
-            // Give the loader padding so it doesn't get stuck under the top bar
             Box(modifier = Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
                 CircularWavyProgressIndicator()
             }
@@ -1495,12 +1393,11 @@ fun QuranScreen(
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    // 3. REMOVED .padding(innerPadding) so the list draws edge-to-edge behind the top bar
-                    .padding(horizontal = 16.dp),
-                
-                // 4. ADDED contentPadding so the first item naturally starts below the top bar
+                    .padding(horizontal = 16.dp)
+                    .alpha(listAlpha)
+                    .scale(listScale),
                 contentPadding = PaddingValues(
-                    top = innerPadding.calculateTopPadding(), 
+                    top = innerPadding.calculateTopPadding(),
                     bottom = innerPadding.calculateBottomPadding()
                 ),
                 verticalArrangement = Arrangement.spacedBy(2.dp)
@@ -1535,11 +1432,11 @@ fun SurahItem(
     val bottomRadius = if (index == totalItems - 1) 20.dp else 4.dp
 
     ListItem(
-        headlineContent = { 
-            Text(surah.nameTransliteration, fontWeight = FontWeight.SemiBold) 
+        headlineContent = {
+            Text(surah.nameTransliteration, fontWeight = FontWeight.SemiBold)
         },
-        supportingContent = { 
-            Text("${surah.type.replaceFirstChar { it.uppercase() }} • ${surah.totalVerses} Verses") 
+        supportingContent = {
+            Text("${surah.type.replaceFirstChar { it.uppercase() }} • ${surah.totalVerses} Verses")
         },
         leadingContent = {
             Box(
@@ -1583,26 +1480,13 @@ fun SurahItem(
 }
 package com.deenbase.app.features.quran.ui
 
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.foundation.LocalIndication
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -1620,7 +1504,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
+import com.deenbase.app.ui.LocalHapticsEnabled
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -1632,7 +1523,6 @@ import com.deenbase.app.R
 import com.deenbase.app.features.quran.data.BISMILLAH
 import com.deenbase.app.features.quran.data.SURAH_NO_BISMILLAH_HEADER
 import com.deenbase.app.features.quran.viewmodel.ReadingViewModel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class,
@@ -1658,9 +1548,12 @@ fun ReadingScreen(
     val arabicFontStyle by viewModel.arabicFontStyle.collectAsState()
     val translationLang by viewModel.translationLang.collectAsState()
 
+    // ── Favourites & Bookmarks ────────────────────────────────────────────────
+    val favouriteVerses by viewModel.favouriteVerses.collectAsState()
+    val bookmarkedVerses by viewModel.bookmarkedVerses.collectAsState()
+
     val urduFontFamily = remember { FontFamily(Font(R.font.noto_nastaliq_urdu)) }
 
-    // Use passed surahName immediately — fall back to loaded once available
     val displayName = if (surahName.isNotEmpty()) surahName
                       else if (loadedSurahName.isNotEmpty()) loadedSurahName
                       else "Surah $surahId"
@@ -1686,13 +1579,11 @@ fun ReadingScreen(
         verses.getOrNull(pagerState.currentPage)?.let { viewModel.updateCurrentJuz(it.juz) }
     }
 
-    // Save progress and increment count on every page change (swipe OR button)
     var lastTrackedPage by remember { mutableIntStateOf(-1) }
     LaunchedEffect(pagerState.currentPage, verses) {
         if (trackGoal && verses.isNotEmpty() && pagerState.currentPage != lastTrackedPage) {
             val page = pagerState.currentPage
             if (lastTrackedPage >= 0 && page > lastTrackedPage) {
-                // Moving forward — save new position and count the verse
                 verses.getOrNull(page)?.let {
                     viewModel.saveProgress(currentSurahId, it.verseNumber)
                     viewModel.incrementTodayCount()
@@ -1798,9 +1689,9 @@ fun ReadingScreen(
                 val scrollState = rememberScrollState()
                 LaunchedEffect(page) { scrollState.scrollTo(0) }
 
-                // Temporary state — will be hooked up later
-                var isFavourite by remember { mutableStateOf(false) }
-                var isBookmarked by remember { mutableStateOf(false) }
+                val verseKey = "${verse.surahId}:${verse.verseNumber}"
+                val isFavourite = verseKey in favouriteVerses
+                val isBookmarked = verseKey in bookmarkedVerses
 
                 Column(
                     modifier = Modifier
@@ -1827,12 +1718,12 @@ fun ReadingScreen(
                         Spacer(modifier = Modifier.height(20.dp))
                     }
 
-                    // ── VERSE CARD ────────────────────────────────────────
+                    // ── VERSE CARD ────────────────────────────────────────────
                     Column(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
-                        // Top section — header with play, surah info, actions
+                        // Top section — header with verse number and actions
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomStart = 4.dp, bottomEnd = 4.dp),
@@ -1846,10 +1737,8 @@ fun ReadingScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                // Verse number on the left
                                 Box(
-                                    modifier = Modifier
-                                        .size(48.dp),
+                                    modifier = Modifier.size(48.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
@@ -1859,8 +1748,6 @@ fun ReadingScreen(
                                         color = MaterialTheme.colorScheme.primary
                                     )
                                 }
-
-                                // Play + Favourite + Bookmark on the right
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     IconButton(onClick = { /* TODO: audio */ }) {
                                         Icon(
@@ -1870,7 +1757,9 @@ fun ReadingScreen(
                                             modifier = Modifier.size(26.dp)
                                         )
                                     }
-                                    IconButton(onClick = { isFavourite = !isFavourite }) {
+                                    IconButton(onClick = {
+                                        viewModel.toggleFavourite(verse.surahId, verse.verseNumber)
+                                    }) {
                                         Icon(
                                             imageVector = if (isFavourite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                                             contentDescription = "Favourite",
@@ -1878,7 +1767,9 @@ fun ReadingScreen(
                                             modifier = Modifier.size(22.dp)
                                         )
                                     }
-                                    IconButton(onClick = { isBookmarked = !isBookmarked }) {
+                                    IconButton(onClick = {
+                                        viewModel.toggleBookmark(verse.surahId, verse.verseNumber)
+                                    }) {
                                         Icon(
                                             imageVector = if (isBookmarked) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
                                             contentDescription = "Bookmark",
@@ -1957,32 +1848,7 @@ fun ReadingScreen(
     }
 }
 
-@Composable
-fun SpringIconButton(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-    containerColor: Color,
-    contentColor: Color,
-    size: Int = 48,
-    content: @Composable () -> Unit
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.82f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
-        label = "scale"
-    )
-    FilledIconButton(
-        onClick = onClick,
-        enabled = enabled,
-        modifier = modifier.size(size.dp).scale(scale),
-        interactionSource = interactionSource,
-        colors = IconButtonDefaults.filledIconButtonColors(containerColor = containerColor, contentColor = contentColor)
-    ) { content() }
-}
-
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ReaderBottomNavigation(
     onPreviousClick: () -> Unit,
@@ -1991,12 +1857,71 @@ fun ReaderBottomNavigation(
     isPreviousEnabled: Boolean,
     isLastVerse: Boolean
 ) {
+    val haptic = LocalHapticFeedback.current
+    val hapticsEnabled = LocalHapticsEnabled.current
+
+    val prevSource = remember { MutableInteractionSource() }
+    val doneSource = remember { MutableInteractionSource() }
+    val nextSource = remember { MutableInteractionSource() }
+
+    val prevPressed by prevSource.collectIsPressedAsState()
+    val donePressed by doneSource.collectIsPressedAsState()
+    val nextPressed by nextSource.collectIsPressedAsState()
+
+    // When a button is pressed, it grows; the others shrink
+    val prevWeight by animateFloatAsState(
+        targetValue = when {
+            prevPressed -> 1.4f
+            donePressed || nextPressed -> 0.8f
+            else -> 1f
+        },
+        animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
+        label = "prevWeight"
+    )
+    val doneWeight by animateFloatAsState(
+        targetValue = when {
+            donePressed -> 2.4f
+            prevPressed || nextPressed -> 1.6f
+            else -> 2f
+        },
+        animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
+        label = "doneWeight"
+    )
+    val nextWeight by animateFloatAsState(
+        targetValue = when {
+            nextPressed -> 1.4f
+            donePressed || prevPressed -> 0.8f
+            else -> 1f
+        },
+        animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
+        label = "nextWeight"
+    )
+
+    // Corner morphing — pill buttons squish from 50dp → 14dp, rect from 16dp → 6dp
+    val prevCorner by animateDpAsState(
+        targetValue = if (prevPressed) 14.dp else 50.dp,
+        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+        label = "prevCorner"
+    )
+    val doneCorner by animateDpAsState(
+        targetValue = if (donePressed) 6.dp else 16.dp,
+        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+        label = "doneCorner"
+    )
+    val nextCorner by animateDpAsState(
+        targetValue = if (nextPressed) 14.dp else 50.dp,
+        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+        label = "nextCorner"
+    )
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(120.dp)
             .background(
-                Brush.verticalGradient(colors = listOf(Color.Transparent, MaterialTheme.colorScheme.background))
+                Brush.verticalGradient(
+                    colors = listOf(Color.Transparent, MaterialTheme.colorScheme.background)
+                )
             )
     ) {
         Row(
@@ -2008,143 +1933,298 @@ fun ReaderBottomNavigation(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // ← Pill button
-            MorphPillButton(
-                onClick = onPreviousClick,
+            // ── PREVIOUS ─────────────────────────────────────────────────────
+            FilledTonalButton(
+                onClick = {
+                    onPreviousClick()
+                    if (hapticsEnabled) haptic.performHapticFeedback(HapticFeedbackType.VirtualKey)
+                },
                 enabled = isPreviousEnabled,
-                modifier = Modifier.weight(1f),
-                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                contentColor = MaterialTheme.colorScheme.onSurface
+                interactionSource = prevSource,
+                shape = RoundedCornerShape(prevCorner),
+                contentPadding = PaddingValues(0.dp),
+                colors = ButtonDefaults.filledTonalButtonColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    contentColor = MaterialTheme.colorScheme.onSurface,
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.38f),
+                    disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                ),
+                modifier = Modifier
+                    .height(52.dp)
+                    .weight(prevWeight)
             ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Previous",
-                    tint = MaterialTheme.colorScheme.onSurface
-                )
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Previous")
             }
 
-            // Done Reading — rounded rectangle middle
-            MorphRectButton(
-                onClick = onDoneClick,
-                modifier = Modifier.weight(2f),
-                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                contentColor = MaterialTheme.colorScheme.onSurface
+            // ── DONE READING ──────────────────────────────────────────────────
+            FilledTonalButton(
+                onClick = {
+                    onDoneClick()
+                    if (hapticsEnabled) haptic.performHapticFeedback(HapticFeedbackType.VirtualKey)
+                },
+                interactionSource = doneSource,
+                shape = RoundedCornerShape(doneCorner),
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                colors = ButtonDefaults.filledTonalButtonColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    contentColor = MaterialTheme.colorScheme.onSurface
+                ),
+                modifier = Modifier
+                    .height(52.dp)
+                    .weight(doneWeight)
             ) {
                 Text(
                     text = "Done Reading",
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    maxLines = 1
                 )
             }
 
-            // → Pill button
-            MorphPillButton(
-                onClick = onNextClick,
-                modifier = Modifier.weight(1f),
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
+            // ── NEXT ──────────────────────────────────────────────────────────
+            FilledTonalButton(
+                onClick = {
+                    onNextClick()
+                    if (hapticsEnabled) haptic.performHapticFeedback(HapticFeedbackType.VirtualKey)
+                },
+                interactionSource = nextSource,
+                shape = RoundedCornerShape(nextCorner),
+                contentPadding = PaddingValues(0.dp),
+                colors = ButtonDefaults.filledTonalButtonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                ),
+                modifier = Modifier
+                    .height(52.dp)
+                    .weight(nextWeight)
             ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = "Next",
-                    tint = MaterialTheme.colorScheme.onPrimary
+                Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Next")
+            }
+        }
+    }
+}
+package com.deenbase.app.features.quran.ui
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.deenbase.app.features.quran.data.Verse
+import com.deenbase.app.features.quran.viewmodel.SavedVersesViewModel
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun SavedVersesScreen(
+    onNavigateBack: () -> Unit,
+    onVerseClick: (surahId: Int, verseNumber: Int, surahName: String) -> Unit,
+    viewModel: SavedVersesViewModel = viewModel()
+) {
+    val favourites by viewModel.favourites.collectAsState()
+    val bookmarks by viewModel.bookmarks.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+
+    var selectedTab by remember { mutableIntStateOf(0) }
+
+    val gradientBrush = Brush.verticalGradient(
+        colors = listOf(MaterialTheme.colorScheme.background, Color.Transparent)
+    )
+
+    Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(
+                modifier = Modifier.background(brush = gradientBrush),
+                title = {
+                    Text(
+                        "Saved Verses",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = Color.Transparent
                 )
+            )
+        },
+        containerColor = MaterialTheme.colorScheme.background
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = innerPadding.calculateTopPadding())
+        ) {
+            // ── Tabs ──────────────────────────────────────────────────────────
+            TabRow(
+                selectedTabIndex = selectedTab,
+                containerColor = Color.Transparent,
+                contentColor = MaterialTheme.colorScheme.primary
+            ) {
+                Tab(
+                    selected = selectedTab == 0,
+                    onClick = { selectedTab = 0 },
+                    text = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(Icons.Filled.Favorite, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Text("Favourites")
+                        }
+                    }
+                )
+                Tab(
+                    selected = selectedTab == 1,
+                    onClick = { selectedTab = 1 },
+                    text = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(Icons.Filled.Bookmark, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Text("Bookmarks")
+                        }
+                    }
+                )
+            }
+
+            // ── Content ───────────────────────────────────────────────────────
+            if (isLoading) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularWavyProgressIndicator()
+                }
+            } else {
+                val currentList = if (selectedTab == 0) favourites else bookmarks
+                val emptyLabel = if (selectedTab == 0)
+                    "No favourites yet.\nTap ♡ while reading a verse."
+                else
+                    "No bookmarks yet.\nTap 🔖 while reading a verse."
+
+                if (currentList.isEmpty()) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text(
+                            text = emptyLabel,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(horizontal = 48.dp)
+                        )
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp),
+                        contentPadding = PaddingValues(top = 12.dp, bottom = 100.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        itemsIndexed(
+                            items = currentList,
+                            key = { _, verse -> "${verse.surahId}:${verse.verseNumber}" }
+                        ) { index, verse ->
+                            SavedVerseItem(
+                                verse = verse,
+                                isFirst = index == 0,
+                                isLast = index == currentList.size - 1,
+                                onClick = {
+                                    onVerseClick(verse.surahId, verse.verseNumber, verse.surahName)
+                                },
+                                onRemove = {
+                                    if (selectedTab == 0) viewModel.removeFavourite(verse.surahId, verse.verseNumber)
+                                    else viewModel.removeBookmark(verse.surahId, verse.verseNumber)
+                                }
+                            )
+                        }
+                    }
+                }
             }
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun MorphPillButton(
+private fun SavedVerseItem(
+    verse: Verse,
+    isFirst: Boolean,
+    isLast: Boolean,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-    containerColor: Color,
-    contentColor: Color,
-    content: @Composable () -> Unit
+    onRemove: () -> Unit
 ) {
+    val topRadius = if (isFirst) 20.dp else 4.dp
+    val bottomRadius = if (isLast) 20.dp else 4.dp
     val interactionSource = remember { MutableInteractionSource() }
-    val isPhysicallyPressed by interactionSource.collectIsPressedAsState()
-    var forceSquish by remember { mutableStateOf(false) }
-    val isSquished = isPhysicallyPressed || forceSquish
-    val scope = rememberCoroutineScope()
 
-    val corner by animateDpAsState(
-        targetValue = if (isSquished) 14.dp else 50.dp,
-        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
-        label = "pill_corner"
-    )
-    val scale by animateFloatAsState(
-        targetValue = if (isSquished) 0.95f else 1.0f,
-        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
-        label = "pill_scale"
-    )
-
-    FilledTonalButton(
-        onClick = {
-            onClick()
-            scope.launch { forceSquish = true; delay(90); forceSquish = false }
+    ListItem(
+        headlineContent = {
+            Text(
+                text = "${verse.surahName} • ${verse.verseNumber}",
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         },
-        enabled = enabled,
-        interactionSource = interactionSource,
-        shape = RoundedCornerShape(corner),
-        contentPadding = PaddingValues(0.dp),
-        colors = ButtonDefaults.filledTonalButtonColors(
-            containerColor = containerColor,
-            contentColor = contentColor,
-            disabledContainerColor = containerColor.copy(alpha = 0.38f),
-            disabledContentColor = contentColor.copy(alpha = 0.38f)
-        ),
-        modifier = modifier.height(52.dp).scale(scale)
-    ) {
-        content()
-    }
-}
-
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Composable
-fun MorphRectButton(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    containerColor: Color,
-    contentColor: Color,
-    content: @Composable () -> Unit
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPhysicallyPressed by interactionSource.collectIsPressedAsState()
-    var forceSquish by remember { mutableStateOf(false) }
-    val isSquished = isPhysicallyPressed || forceSquish
-    val scope = rememberCoroutineScope()
-
-    val corner by animateDpAsState(
-        targetValue = if (isSquished) 6.dp else 16.dp,
-        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
-        label = "rect_corner"
-    )
-    val scale by animateFloatAsState(
-        targetValue = if (isSquished) 0.95f else 1.0f,
-        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
-        label = "rect_scale"
-    )
-
-    FilledTonalButton(
-        onClick = {
-            onClick()
-            scope.launch { forceSquish = true; delay(90); forceSquish = false }
+        supportingContent = {
+            Text(
+                text = verse.arabicText,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                fontSize = 16.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Right,
+                modifier = Modifier.fillMaxWidth()
+            )
         },
-        interactionSource = interactionSource,
-        shape = RoundedCornerShape(corner),
-        contentPadding = PaddingValues(0.dp),
-        colors = ButtonDefaults.filledTonalButtonColors(
-            containerColor = containerColor,
-            contentColor = contentColor
-        ),
-        modifier = modifier.height(52.dp).scale(scale)
-    ) {
-        content()
-    }
+        trailingContent = {
+            IconButton(onClick = onRemove) {
+                Icon(
+                    imageVector = Icons.Filled.Delete,
+                    contentDescription = "Remove",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        },
+        modifier = Modifier
+            .clip(
+                RoundedCornerShape(
+                    topStart = topRadius, topEnd = topRadius,
+                    bottomStart = bottomRadius, bottomEnd = bottomRadius
+                )
+            )
+            .clickable(
+                interactionSource = interactionSource,
+                indication = ripple(),
+                onClick = onClick
+            ),
+        colors = ListItemDefaults.colors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        )
+    )
 }
 package com.deenbase.app.features.quran.data
 
@@ -2306,6 +2386,33 @@ class QuranRepository {
             )
         }
     }
+
+    fun getDailyVerse(dayOfYear: Int): Verse? {
+        val offset = dayOfYear % 6236
+        val rows = query(
+            """
+            SELECT v.id, v.surah_number, v.verse_number, v.arabic_text,
+                   v.english_text, v.urdu_text, v.juz,
+                   s.name_transliteration, s.name_arabic
+            FROM verses v
+            JOIN surahs s ON v.surah_number = s.surah_number
+            LIMIT 1 OFFSET ?
+            """.trimIndent(),
+            listOf(offset)
+        )
+        return rows.firstOrNull()?.let { row ->
+            Verse(
+                id              = row["id"]?.toIntOrNull() ?: 0,
+                surahId         = row["surah_number"]?.toIntOrNull() ?: 0,
+                verseNumber     = row["verse_number"]?.toIntOrNull() ?: 0,
+                arabicText      = row["arabic_text"] ?: "",
+                translationText = row["english_text"] ?: "",
+                juz             = row["juz"]?.toIntOrNull() ?: 0,
+                surahName       = row["name_transliteration"] ?: "",
+                surahNameArabic = row["name_arabic"] ?: ""
+            )
+        }
+    }
 }
 package com.deenbase.app.features.quran.viewmodel
 
@@ -2407,6 +2514,33 @@ class ReadingViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope, SharingStarted.WhileSubscribed(5000), "english"
     )
 
+    // ── Favourites & Bookmarks ────────────────────────────────────────────────
+    val favouriteVerses = settingsManager.favouriteVerses.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet()
+    )
+    val bookmarkedVerses = settingsManager.bookmarkedVerses.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet()
+    )
+
+    fun isFavourite(surahId: Int, verseNumber: Int): Boolean =
+        "$surahId:$verseNumber" in favouriteVerses.value
+
+    fun isBookmarked(surahId: Int, verseNumber: Int): Boolean =
+        "$surahId:$verseNumber" in bookmarkedVerses.value
+
+    fun toggleFavourite(surahId: Int, verseNumber: Int) {
+        viewModelScope.launch {
+            settingsManager.toggleFavouriteVerse(surahId, verseNumber)
+        }
+    }
+
+    fun toggleBookmark(surahId: Int, verseNumber: Int) {
+        viewModelScope.launch {
+            settingsManager.toggleBookmarkVerse(surahId, verseNumber)
+        }
+    }
+
+    // ── Surah loading ─────────────────────────────────────────────────────────
     fun loadSurah(surahId: Int) {
         viewModelScope.launch {
             _isLoading.value = true
@@ -2448,6 +2582,87 @@ class ReadingViewModel(application: Application) : AndroidViewModel(application)
             val current = settingsManager.goalTodayCount.first()
             settingsManager.setGoalTodayCount(current + 1)
         }
+    }
+}
+package com.deenbase.app.features.quran.viewmodel
+
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import com.deenbase.app.data.SettingsManager
+import com.deenbase.app.features.quran.data.QuranRepository
+import com.deenbase.app.features.quran.data.Verse
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+class SavedVersesViewModel(application: Application) : AndroidViewModel(application) {
+
+    private val settingsManager = SettingsManager(application)
+    private val repository = QuranRepository()
+
+    private val translationLang = settingsManager.translationLang.stateIn(
+        viewModelScope, SharingStarted.Eagerly, "english"
+    )
+
+    private val _favourites = MutableStateFlow<List<Verse>>(emptyList())
+    val favourites: StateFlow<List<Verse>> = _favourites.asStateFlow()
+
+    private val _bookmarks = MutableStateFlow<List<Verse>>(emptyList())
+    val bookmarks: StateFlow<List<Verse>> = _bookmarks.asStateFlow()
+
+    private val _isLoading = MutableStateFlow(true)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    init {
+        observeSaved()
+    }
+
+    private fun observeSaved() {
+        viewModelScope.launch {
+            settingsManager.favouriteVerses.collectLatest { keys ->
+                _isLoading.value = true
+                _favourites.value = fetchVerses(keys)
+                _isLoading.value = false
+            }
+        }
+        viewModelScope.launch {
+            settingsManager.bookmarkedVerses.collectLatest { keys ->
+                _bookmarks.value = fetchVerses(keys)
+            }
+        }
+    }
+
+    private suspend fun fetchVerses(keys: Set<String>): List<Verse> {
+        if (keys.isEmpty()) return emptyList()
+        val lang = translationLang.value
+        return withContext(Dispatchers.IO) {
+            keys.mapNotNull { key ->
+                val parts = key.split(":")
+                val surahId = parts.getOrNull(0)?.toIntOrNull() ?: return@mapNotNull null
+                val verseNum = parts.getOrNull(1)?.toIntOrNull() ?: return@mapNotNull null
+                try {
+                    repository.getVersesForSurah(surahId, lang)
+                        .find { it.verseNumber == verseNum }
+                } catch (e: Exception) {
+                    null
+                }
+            }.sortedWith(compareBy({ it.surahId }, { it.verseNumber }))
+        }
+    }
+
+    fun removeFavourite(surahId: Int, verseNumber: Int) {
+        viewModelScope.launch { settingsManager.toggleFavouriteVerse(surahId, verseNumber) }
+    }
+
+    fun removeBookmark(surahId: Int, verseNumber: Int) {
+        viewModelScope.launch { settingsManager.toggleBookmarkVerse(surahId, verseNumber) }
     }
 }
 package com.deenbase.app.features.hadith.ui
@@ -3812,6 +4027,46 @@ object HadithRepository {
         }
     }.recoverCatching { error("DB error: ${it.javaClass.simpleName}: ${it.message}") }
 
+    // ── Daily Hadith ──────────────────────────────────────────────────────────
+
+    suspend fun getDailyHadith(dayOfYear: Int): Result<Hadith?> = runCatching {
+        val offset = dayOfYear % 35903
+        val rows = query(
+            """
+            SELECT h.id, h.book_edition, h.hadith_number, h.chapter_number,
+                   h.text_english, h.text_arabic, h.grade,
+                   b.name_english AS book_name,
+                   c.name_english AS chapter_name
+            FROM hadiths h
+            JOIN books b ON h.book_edition = b.edition
+            LEFT JOIN chapters c ON h.book_edition = c.book_edition
+                                 AND h.chapter_number = c.chapter_number
+            LIMIT 1 OFFSET ?
+            """.trimIndent(),
+            listOf(offset)
+        )
+        rows.firstOrNull()?.let { row ->
+            val bookEdition = row["book_edition"] ?: ""
+            Hadith(
+                id             = row["id"]?.toIntOrNull() ?: 0,
+                hadithNumber   = row["hadith_number"] ?: "",
+                hadithEnglish  = row["text_english"] ?: "",
+                hadithArabic   = row["text_arabic"] ?: "",
+                hadithUrdu     = "",
+                englishNarrator = "",
+                urduNarrator   = "",
+                chapterNumber  = row["chapter_number"],
+                chapterEnglish = row["chapter_name"],
+                bookSlug       = bookEdition,
+                status         = row["grade"],
+                book           = BookInfo(
+                    bookName = row["book_name"] ?: bookEdition,
+                    slug     = bookEdition
+                )
+            )
+        }
+    }.recoverCatching { error(it.toUserMessage()) }
+
     // ── Row → Hadith mapping ──────────────────────────────────────────────────
 
     private fun List<Map<String, String?>>.toHadiths(): List<Hadith> = map { row ->
@@ -4101,23 +4356,30 @@ class HadithViewModel : ViewModel() {
 package com.deenbase.app.features.settings.ui
 
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.NotificationsNone
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.SystemUpdateAlt
 import androidx.compose.material.icons.filled.TrackChanges
 import androidx.compose.material3.*
 import androidx.compose.material3.MaterialTheme.motionScheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -4131,21 +4393,26 @@ fun SettingsScreen(
     onQuranSettingsClick: () -> Unit,
     onQuranGoalClick: () -> Unit,
     onAppPreferencesClick: () -> Unit,
-    onNotificationSettingsClick: () -> Unit
+    onNotificationSettingsClick: () -> Unit,
+    onAboutClick: () -> Unit = {},
+    onCheckForUpdatesClick: () -> Unit = {},
+    isCheckingForUpdates: Boolean = false
 ) {
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { visible = true }
+
+    val quranAlpha by animateFloatAsState(targetValue = if (visible) 1f else 0f, animationSpec = tween(400, delayMillis = 80),  label = "quranAlpha")
+    val quranScale by animateFloatAsState(targetValue = if (visible) 1f else 0.96f, animationSpec = tween(400, delayMillis = 80),  label = "quranScale")
+    val appAlpha   by animateFloatAsState(targetValue = if (visible) 1f else 0f, animationSpec = tween(400, delayMillis = 180), label = "appAlpha")
+    val appScale   by animateFloatAsState(targetValue = if (visible) 1f else 0.96f, animationSpec = tween(400, delayMillis = 180), label = "appScale")
+    val aboutAlpha by animateFloatAsState(targetValue = if (visible) 1f else 0f, animationSpec = tween(400, delayMillis = 280), label = "aboutAlpha")
+    val aboutScale by animateFloatAsState(targetValue = if (visible) 1f else 0.96f, animationSpec = tween(400, delayMillis = 280), label = "aboutScale")
+
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        "Settings",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = Color.Transparent
-                )
+                title = { Text("Settings", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold) },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.Transparent)
             )
         },
         containerColor = MaterialTheme.colorScheme.background
@@ -4155,74 +4422,48 @@ fun SettingsScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .padding(horizontal = 16.dp)
+                .verticalScroll(rememberScrollState())
         ) {
             // ── QURAN ────────────────────────────────────────────────────
-            Text(
-                text = "Quran",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(start = 8.dp, bottom = 8.dp, top = 8.dp)
-            )
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                SettingsItem(
-                    title = "Quran Settings",
-                    subtitle = "Font, translation, display",
-                    leadingIcon = Icons.AutoMirrored.Filled.MenuBook,
-                    index = 0,
-                    totalItems = 2,
-                    onClick = onQuranSettingsClick
-                )
-                SettingsItem(
-                    title = "Reading Goal",
-                    subtitle = "Daily verse target",
-                    leadingIcon = Icons.Filled.TrackChanges,
-                    index = 1,
-                    totalItems = 2,
-                    onClick = onQuranGoalClick
-                )
+            Column(modifier = Modifier.alpha(quranAlpha).scale(quranScale)) {
+                Text("Quran", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(start = 8.dp, bottom = 8.dp, top = 8.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    SettingsItem("Quran Settings",  "Font, translation, display", Icons.AutoMirrored.Filled.MenuBook, 0, 2, onQuranSettingsClick)
+                    SettingsItem("Reading Goal",    "Daily verse target",         Icons.Filled.TrackChanges,          1, 2, onQuranGoalClick)
+                }
             }
 
             // ── APP ──────────────────────────────────────────────────────
-            Text(
-                text = "App",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(start = 8.dp, bottom = 8.dp, top = 24.dp)
-            )
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                SettingsItem(
-                    title = "App Preferences",
-                    subtitle = "Theme, haptics",
-                    leadingIcon = Icons.Filled.Settings,
-                    index = 0,
-                    totalItems = 2,
-                    onClick = onAppPreferencesClick
-                )
-                SettingsItem(
-                    title = "Notification Settings",
-                    subtitle = "Quran and Dhikr reminders",
-                    leadingIcon = Icons.Filled.NotificationsNone,
-                    index = 1,
-                    totalItems = 2,
-                    onClick = onNotificationSettingsClick
-                )
+            Column(modifier = Modifier.alpha(appAlpha).scale(appScale)) {
+                Text("App", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(start = 8.dp, bottom = 8.dp, top = 24.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    SettingsItem("App Preferences",       "Theme, haptics",               Icons.Filled.Settings,          0, 2, onAppPreferencesClick)
+                    SettingsItem("Notification Settings", "Quran and Dhikr reminders",    Icons.Filled.NotificationsNone, 1, 2, onNotificationSettingsClick)
+                }
             }
 
             // ── ABOUT ────────────────────────────────────────────────────
-            Text(
-                text = "About",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(start = 8.dp, bottom = 8.dp, top = 24.dp)
-            )
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                SettingsItem(
-                    title = "DeenBase Version",
-                    subtitle = BuildConfig.VERSION_NAME,
-                    leadingIcon = Icons.Filled.Info,
-                    index = 0,
-                    totalItems = 1
-                )
+            Column(modifier = Modifier.alpha(aboutAlpha).scale(aboutScale)) {
+                Text("About", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(start = 8.dp, bottom = 8.dp, top = 24.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    SettingsItem(
+                        title = "About DeenBase",
+                        subtitle = "App info, developer, license",
+                        leadingIcon = Icons.Filled.Info,
+                        index = 0, totalItems = 2,
+                        onClick = onAboutClick
+                    )
+                    SettingsItem(
+                        title = if (isCheckingForUpdates) "Checking..." else "Check for Updates",
+                        subtitle = "Tap to check for the latest version",
+                        leadingIcon = Icons.Filled.SystemUpdateAlt,
+                        index = 1, totalItems = 2,
+                        onClick = { if (!isCheckingForUpdates) onCheckForUpdatesClick() }
+                    )
+                }
             }
         }
     }
@@ -4243,54 +4484,27 @@ fun SettingsItem(
 
     val topRadius by animateDpAsState(
         targetValue = if (isPressed || index == 0 || totalItems == 1) 20.dp else 4.dp,
-        animationSpec = motionScheme.fastSpatialSpec(),
-        label = "topRounding"
+        animationSpec = motionScheme.fastSpatialSpec(), label = "topRounding"
     )
     val bottomRadius by animateDpAsState(
         targetValue = if (isPressed || index == totalItems - 1 || totalItems == 1) 20.dp else 4.dp,
-        animationSpec = motionScheme.fastSpatialSpec(),
-        label = "bottomRounding"
-    )
-
-    val shape = RoundedCornerShape(
-        topStart = topRadius, topEnd = topRadius,
-        bottomStart = bottomRadius, bottomEnd = bottomRadius
+        animationSpec = motionScheme.fastSpatialSpec(), label = "bottomRounding"
     )
 
     ListItem(
-        headlineContent = {
-            Text(title, fontWeight = FontWeight.Medium)
-        },
-        supportingContent = {
-            Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        },
-        leadingContent = {
-            Icon(
-                imageVector = leadingIcon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary
-            )
-        },
+        headlineContent = { Text(title, fontWeight = FontWeight.Medium) },
+        supportingContent = { Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant) },
+        leadingContent = { Icon(imageVector = leadingIcon, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
         trailingContent = {
             if (onClick != {}) {
-                Icon(
-                    imageVector = Icons.Filled.ChevronRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Icon(imageVector = Icons.Filled.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         },
-        colors = ListItemDefaults.colors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        ),
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
         modifier = Modifier
             .fillMaxWidth()
-            .clip(shape)
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick
-            )
+            .clip(RoundedCornerShape(topStart = topRadius, topEnd = topRadius, bottomStart = bottomRadius, bottomEnd = bottomRadius))
+            .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
     )
 }
 package com.deenbase.app.features.settings.ui
@@ -4645,6 +4859,7 @@ private fun SwitchSettingsItem(
 }
 package com.deenbase.app.features.settings.ui
 
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -4654,6 +4869,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme.motionScheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -4682,6 +4898,7 @@ fun AppPreferencesScreen(
 ) {
     val themeMode by viewModel.themeMode.collectAsState()
     val hapticsEnabled by viewModel.hapticsEnabled.collectAsState()
+    val oledMode by viewModel.oledMode.collectAsState()
     var showResetDialog by remember { mutableStateOf(false) }
 
     val gradientBrush = Brush.verticalGradient(
@@ -4722,10 +4939,7 @@ fun AppPreferencesScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
-                        )
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
@@ -4744,12 +4958,12 @@ fun AppPreferencesScreen(
         ) {
             Spacer(modifier = Modifier.height(innerPadding.calculateTopPadding()))
 
-            // ── APPEARANCE ───────────────────────────────────────────────
+            // ── APPEARANCE ────────────────────────────────────────────────────
             SectionLabel("Appearance")
 
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
 
-                // Theme picker
+                // Theme picker (index 0)
                 Surface(
                     shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 4.dp, bottomEnd = 4.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -4772,29 +4986,28 @@ fun AppPreferencesScreen(
                     }
                 }
 
-                // Haptics toggle
-                ListItem(
-                    headlineContent = { Text("Haptics", fontWeight = FontWeight.SemiBold) },
-                    supportingContent = { Text("Vibration feedback on button taps") },
-                    trailingContent = {
-                        Switch(
-                            checked = hapticsEnabled,
-                            onCheckedChange = { viewModel.setHapticsEnabled(it) },
-                            colors = SwitchDefaults.colors(
-                                uncheckedTrackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                                uncheckedThumbColor = MaterialTheme.colorScheme.onSurface,
-                                uncheckedBorderColor = MaterialTheme.colorScheme.outline
-                            )
-                        )
-                    },
-                    modifier = Modifier.clip(
-                        RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 20.dp, bottomEnd = 20.dp)
-                    ),
-                    colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+                // OLED Mode (index 1)
+                SwitchSettingsItem(
+                    title = "OLED Mode",
+                    subtitle = "Pure black background in dark theme",
+                    checked = oledMode,
+                    index = 1,
+                    totalItems = 3,
+                    onCheckedChange = { viewModel.setOledMode(it) }
+                )
+
+                // Haptics (index 2 — last)
+                SwitchSettingsItem(
+                    title = "Haptics",
+                    subtitle = "Vibration feedback on button taps",
+                    checked = hapticsEnabled,
+                    index = 2,
+                    totalItems = 3,
+                    onCheckedChange = { viewModel.setHapticsEnabled(it) }
                 )
             }
 
-            // ── DATA ─────────────────────────────────────────────────────
+            // ── DATA ──────────────────────────────────────────────────────────
             SectionLabel("Data")
 
             ListItem(
@@ -4811,6 +5024,49 @@ fun AppPreferencesScreen(
             Spacer(modifier = Modifier.height(100.dp))
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun SwitchSettingsItem(
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    index: Int,
+    totalItems: Int,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    val topRadius by animateDpAsState(
+        targetValue = if (index == 0 || totalItems == 1) 20.dp else 4.dp,
+        animationSpec = motionScheme.fastSpatialSpec(), label = "top"
+    )
+    val bottomRadius by animateDpAsState(
+        targetValue = if (index == totalItems - 1 || totalItems == 1) 20.dp else 4.dp,
+        animationSpec = motionScheme.fastSpatialSpec(), label = "bottom"
+    )
+
+    ListItem(
+        headlineContent = { Text(title, fontWeight = FontWeight.SemiBold) },
+        supportingContent = { Text(subtitle) },
+        trailingContent = {
+            Switch(
+                checked = checked,
+                onCheckedChange = onCheckedChange,
+                colors = SwitchDefaults.colors(
+                    uncheckedTrackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    uncheckedThumbColor = MaterialTheme.colorScheme.onSurface,
+                    uncheckedBorderColor = MaterialTheme.colorScheme.outline
+                )
+            )
+        },
+        modifier = Modifier.clip(
+            RoundedCornerShape(
+                topStart = topRadius, topEnd = topRadius,
+                bottomStart = bottomRadius, bottomEnd = bottomRadius
+            )
+        ),
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+    )
 }
 package com.deenbase.app.features.settings.ui
 
@@ -5421,6 +5677,266 @@ fun QuranGoalScreen(
         }
     }
 }
+package com.deenbase.app.features.settings.ui
+
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.Image
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.Gavel
+import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.deenbase.app.BuildConfig
+import com.deenbase.app.R
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun AboutScreen(
+    onNavigateBack: () -> Unit
+) {
+    val uriHandler = LocalUriHandler.current
+
+    val gradientBrush = Brush.verticalGradient(
+        colors = listOf(MaterialTheme.colorScheme.background, Color.Transparent)
+    )
+
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { visible = true }
+
+    val appAlpha by animateFloatAsState(
+        targetValue = if (visible) 1f else 0f,
+        animationSpec = tween(durationMillis = 400, delayMillis = 80),
+        label = "appAlpha"
+    )
+    val appScale by animateFloatAsState(
+        targetValue = if (visible) 1f else 0.96f,
+        animationSpec = tween(durationMillis = 400, delayMillis = 80),
+        label = "appScale"
+    )
+    val devAlpha by animateFloatAsState(
+        targetValue = if (visible) 1f else 0f,
+        animationSpec = tween(durationMillis = 400, delayMillis = 180),
+        label = "devAlpha"
+    )
+    val devScale by animateFloatAsState(
+        targetValue = if (visible) 1f else 0.96f,
+        animationSpec = tween(durationMillis = 400, delayMillis = 180),
+        label = "devScale"
+    )
+    val linksAlpha by animateFloatAsState(
+        targetValue = if (visible) 1f else 0f,
+        animationSpec = tween(durationMillis = 400, delayMillis = 280),
+        label = "linksAlpha"
+    )
+    val linksScale by animateFloatAsState(
+        targetValue = if (visible) 1f else 0.96f,
+        animationSpec = tween(durationMillis = 400, delayMillis = 280),
+        label = "linksScale"
+    )
+
+    Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = {
+                    Text(
+                        "About",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = Color.Transparent
+                )
+            )
+        },
+        containerColor = MaterialTheme.colorScheme.background
+    ) { innerPadding ->
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Spacer(modifier = Modifier.height(innerPadding.calculateTopPadding() + 8.dp))
+
+                // ── APP CARD ──────────────────────────────────────────────────
+                Box(
+                    modifier = Modifier
+                        .alpha(appAlpha)
+                        .scale(appScale)
+                        .fillMaxWidth()
+                        .clip(
+                            RoundedCornerShape(
+                                topStart = 20.dp, topEnd = 20.dp,
+                                bottomStart = 4.dp, bottomEnd = 4.dp
+                            )
+                        )
+                        .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        // App icon
+                        Box(
+                            modifier = Modifier
+                                .size(64.dp)
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(MaterialTheme.colorScheme.primaryContainer),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Image(
+                                painter = painterResource(id = R.drawable.ic_launcher_foreground),
+                                contentDescription = null,
+                                modifier = Modifier.size(48.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "DeenBase",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        // GitHub + Instagram icon buttons
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            FilledTonalIconButton(
+                                onClick = { uriHandler.openUri("https://github.com/aftab7xt/DeenBase-App") }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Code,
+                                    contentDescription = "GitHub",
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            FilledTonalIconButton(
+                                onClick = { uriHandler.openUri("https://instagram.com/deen_base") }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.PhotoCamera,
+                                    contentDescription = "Instagram",
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // ── DEVELOPER CARD ────────────────────────────────────────────
+                Box(
+                    modifier = Modifier
+                        .alpha(devAlpha)
+                        .scale(devScale)
+                        .fillMaxWidth()
+                        .clip(
+                            RoundedCornerShape(
+                                topStart = 4.dp, topEnd = 4.dp,
+                                bottomStart = 20.dp, bottomEnd = 20.dp
+                            )
+                        )
+                        .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        // Developer avatar placeholder
+                        Box(
+                            modifier = Modifier
+                                .size(64.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.secondaryContainer),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "SA",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                fontSize = 20.sp
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Shaikh Aftab Alli",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Developer",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.secondary
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // ── LEGAL ─────────────────────────────────────────────────────
+                Box(modifier = Modifier.alpha(linksAlpha).scale(linksScale)) {
+                    SettingsItem(
+                        title = "License",
+                        subtitle = "GNU General Public License Version 3",
+                        leadingIcon = Icons.Filled.Gavel,
+                        index = 0,
+                        totalItems = 1,
+                        onClick = { uriHandler.openUri("https://www.gnu.org/licenses/gpl-3.0.html") }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(100.dp))
+            }
+
+            // Top gradient
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(innerPadding.calculateTopPadding() + 32.dp)
+                    .background(brush = gradientBrush)
+                    .align(Alignment.TopCenter)
+            )
+        }
+    }
+}
 package com.deenbase.app.features.settings.viewmodel
 
 import android.app.Application
@@ -5526,12 +6042,18 @@ class AppPreferencesViewModel(application: Application) : AndroidViewModel(appli
     val hapticsEnabled = settingsManager.hapticsEnabled.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), true
     )
+    val oledMode = settingsManager.oledMode.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), false
+    )
 
     fun setThemeMode(mode: String) {
         viewModelScope.launch { settingsManager.setThemeMode(mode) }
     }
     fun setHapticsEnabled(enabled: Boolean) {
         viewModelScope.launch { settingsManager.setHapticsEnabled(enabled) }
+    }
+    fun setOledMode(enabled: Boolean) {
+        viewModelScope.launch { settingsManager.setOledMode(enabled) }
     }
     fun resetAllData() {
         viewModelScope.launch { settingsManager.resetAllData() }
@@ -5594,8 +6116,10 @@ class NotificationSettingsViewModel(application: Application) : AndroidViewModel
 }
 package com.deenbase.app.features.home.ui
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -5603,6 +6127,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Loop
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -5611,9 +6137,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.deenbase.app.features.home.viewmodel.GoalViewModel
 
@@ -5629,18 +6157,31 @@ fun HomeScreen(
     val goalVerse by goalViewModel.goalVerse.collectAsState()
     val dailyTarget by goalViewModel.dailyTarget.collectAsState()
     val todayCount by goalViewModel.todayCount.collectAsState()
+    val dailyVerse by goalViewModel.dailyVerse.collectAsState()
+    val dailyHadith by goalViewModel.dailyHadith.collectAsState()
 
     var showPositionDialog by remember { mutableStateOf(false) }
     var selectedSurahId by remember { mutableIntStateOf(goalSurahId) }
     var verseInput by remember { mutableStateOf(goalVerse.toString()) }
+    var verseExpanded by remember { mutableStateOf(false) }
+    var hadithExpanded by remember { mutableStateOf(false) }
 
     val currentSurah = surahs.find { it.id == goalSurahId }
     val progress = if (dailyTarget > 0) (todayCount.toFloat() / dailyTarget).coerceIn(0f, 1f) else 0f
     val percent = (progress * 100).toInt()
 
-    // Entrance animation state — triggers once on first composition
+    val gradientBrush = Brush.verticalGradient(
+        colors = listOf(MaterialTheme.colorScheme.background, Color.Transparent)
+    )
+
+    // ── Entrance animations ───────────────────────────────────────────────────
     var visible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { visible = true }
+
+    var verseVisible by remember { mutableStateOf(false) }
+    var hadithDayVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(dailyVerse) { if (dailyVerse != null) verseVisible = true }
+    LaunchedEffect(dailyHadith) { if (dailyHadith != null) hadithDayVisible = true }
 
     val goalAlpha by animateFloatAsState(
         targetValue = if (visible) 1f else 0f,
@@ -5661,6 +6202,26 @@ fun HomeScreen(
         targetValue = if (visible) 1f else 0.96f,
         animationSpec = tween(durationMillis = 400, delayMillis = 180),
         label = "tasbihOffset"
+    )
+    val verseAlpha by animateFloatAsState(
+        targetValue = if (verseVisible) 1f else 0f,
+        animationSpec = tween(durationMillis = 400),
+        label = "verseAlpha"
+    )
+    val verseOffset by animateFloatAsState(
+        targetValue = if (verseVisible) 1f else 0.96f,
+        animationSpec = tween(durationMillis = 400),
+        label = "verseOffset"
+    )
+    val hadithDayAlpha by animateFloatAsState(
+        targetValue = if (hadithDayVisible) 1f else 0f,
+        animationSpec = tween(durationMillis = 400),
+        label = "hadithDayAlpha"
+    )
+    val hadithDayOffset by animateFloatAsState(
+        targetValue = if (hadithDayVisible) 1f else 0.96f,
+        animationSpec = tween(durationMillis = 400),
+        label = "hadithDayOffset"
     )
 
     // Position picker dialog
@@ -5755,153 +6316,278 @@ fun HomeScreen(
                     )
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
+                    containerColor = Color.Transparent
                 )
             )
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 16.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // ── GOAL CARD ────────────────────────────────────────────────
-            Card(
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .alpha(goalAlpha)
-                    .scale(goalOffset),
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                )
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                Spacer(modifier = Modifier.height(innerPadding.calculateTopPadding() + 8.dp))
+
+                // ── GOAL CARD ─────────────────────────────────────────────────
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .alpha(goalAlpha)
+                        .scale(goalOffset),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Goal",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "$percent%",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = if (currentSurah != null)
+                                    "${currentSurah.id} ${currentSurah.nameTransliteration} | $goalVerse/${currentSurah.totalVerses}"
+                                else "Loading...",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            IconButton(
+                                onClick = { showPositionDialog = true },
+                                modifier = Modifier.size(20.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Edit,
+                                    contentDescription = "Edit goal",
+                                    modifier = Modifier.size(16.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        LinearProgressIndicator(
+                            progress = { progress },
+                            modifier = Modifier.fillMaxWidth().height(8.dp),
+                            trackColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+
+                        Text(
+                            text = "$todayCount/$dailyTarget verses today",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        Button(
+                            onClick = { onReadQuranClick(goalSurahId, goalVerse) },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.MenuBook,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Read Quran", fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                }
+
+                // ── EXPLORE HADITHS ───────────────────────────────────────────
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                        .alpha(tasbihAlpha)
+                        .scale(tasbihOffset),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    Row(
+                    Card(
+                        onClick = onHadithClick,
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
                     ) {
-                        Text(
-                            text = "Goal",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "$percent%",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = if (currentSurah != null)
-                                "${currentSurah.id} ${currentSurah.nameTransliteration} | $goalVerse/${currentSurah.totalVerses}"
-                            else "Loading...",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        IconButton(
-                            onClick = { showPositionDialog = true },
-                            modifier = Modifier.size(20.dp)
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(20.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text(
+                                    text = "Explore Hadiths",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    text = "Browse authentic hadiths",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                             Icon(
-                                imageVector = Icons.Filled.Edit,
-                                contentDescription = "Edit goal",
-                                modifier = Modifier.size(16.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                imageVector = Icons.Filled.Loop,
+                                contentDescription = "Hadith",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }
+                }
 
-                    LinearProgressIndicator(
-                        progress = { progress },
-                        modifier = Modifier.fillMaxWidth().height(8.dp),
-                        trackColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-
-                    Text(
-                        text = "$todayCount/$dailyTarget verses today",
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    Button(
-                        onClick = { onReadQuranClick(goalSurahId, goalVerse) },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.MenuBook,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
+                // ── VERSE OF THE DAY ──────────────────────────────────────────
+                dailyVerse?.let { verse ->
+                    Card(
+                        onClick = { verseExpanded = !verseExpanded },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .alpha(verseAlpha)
+                            .scale(verseOffset),
+                        shape = RoundedCornerShape(24.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Read Quran", fontWeight = FontWeight.SemiBold)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(20.dp)
+                                .animateContentSize(animationSpec = tween(durationMillis = 300)),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Verse of the Day",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                )
+                                Icon(
+                                    imageVector = if (verseExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                                    contentDescription = if (verseExpanded) "Collapse" else "Expand",
+                                    tint = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.5f),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            Text(
+                                text = verse.translationText,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                maxLines = if (verseExpanded) Int.MAX_VALUE else 3,
+                                overflow = if (verseExpanded) TextOverflow.Clip else TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = "${verse.surahName} • ${verse.verseNumber}",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.6f)
+                            )
+                        }
                     }
                 }
+
+                // ── HADITH OF THE DAY ─────────────────────────────────────────
+                dailyHadith?.let { hadith ->
+                    Card(
+                        onClick = { hadithExpanded = !hadithExpanded },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .alpha(hadithDayAlpha)
+                            .scale(hadithDayOffset),
+                        shape = RoundedCornerShape(24.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(20.dp)
+                                .animateContentSize(animationSpec = tween(durationMillis = 300)),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Hadith of the Day",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                                )
+                                Icon(
+                                    imageVector = if (hadithExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                                    contentDescription = if (hadithExpanded) "Collapse" else "Expand",
+                                    tint = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.5f),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            Text(
+                                text = hadith.hadithEnglish,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                maxLines = if (hadithExpanded) Int.MAX_VALUE else 3,
+                                overflow = if (hadithExpanded) TextOverflow.Clip else TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = buildString {
+                                    append(hadith.book?.bookName ?: hadith.bookSlug)
+                                    if (hadith.hadithNumber.isNotBlank()) append(" ${hadith.hadithNumber}")
+                                },
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.6f),
+                                overflow = TextOverflow.Ellipsis,
+                                maxLines = 1
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(100.dp))
             }
 
-            // ── HADITH ───────────────────────────────────────────────────
-            Column(
+            // Top gradient — identical to all other screens
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .alpha(tasbihAlpha)
-                    .scale(tasbihOffset),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                Card(
-                    onClick = onHadithClick,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(20.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text(
-                                text = "Explore Hadiths",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Text(
-                                text = "Browse authentic hadiths",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        Icon(
-                            imageVector = Icons.Filled.Loop,
-                            contentDescription = "Hadith",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(100.dp))
+                    .height(innerPadding.calculateTopPadding() + 32.dp)
+                    .background(brush = gradientBrush)
+                    .align(Alignment.TopCenter)
+            )
         }
     }
 }
@@ -5911,8 +6597,11 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.deenbase.app.data.SettingsManager
+import com.deenbase.app.features.hadith.data.Hadith
+import com.deenbase.app.features.hadith.data.HadithRepository
 import com.deenbase.app.features.quran.data.QuranRepository
 import com.deenbase.app.features.quran.data.SurahInfo
+import com.deenbase.app.features.quran.data.Verse
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -5926,7 +6615,7 @@ import java.time.LocalDate
 
 class GoalViewModel(application: Application) : AndroidViewModel(application) {
     private val settingsManager = SettingsManager(application)
-    private val repository = QuranRepository()
+    private val quranRepository = QuranRepository()
 
     val goalSurahId = settingsManager.goalSurahId.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 1)
     val goalVerse   = settingsManager.goalVerse.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 1)
@@ -5936,23 +6625,41 @@ class GoalViewModel(application: Application) : AndroidViewModel(application) {
     private val _surahs = MutableStateFlow<List<SurahInfo>>(emptyList())
     val surahs: StateFlow<List<SurahInfo>> = _surahs.asStateFlow()
 
+    private val _dailyVerse = MutableStateFlow<Verse?>(null)
+    val dailyVerse: StateFlow<Verse?> = _dailyVerse.asStateFlow()
+
+    private val _dailyHadith = MutableStateFlow<Hadith?>(null)
+    val dailyHadith: StateFlow<Hadith?> = _dailyHadith.asStateFlow()
+
     init {
+        val dayOfYear = LocalDate.now().dayOfYear
         loadSurahs()
         resetIfNewDay()
+        loadDailyContent(dayOfYear)
     }
 
     private fun loadSurahs() {
         viewModelScope.launch {
-            val list = withContext(Dispatchers.IO) { repository.getSurahsList() }
+            val list = withContext(Dispatchers.IO) { quranRepository.getSurahsList() }
             _surahs.value = list
+        }
+    }
+
+    private fun loadDailyContent(dayOfYear: Int) {
+        viewModelScope.launch {
+            val verse = withContext(Dispatchers.IO) { quranRepository.getDailyVerse(dayOfYear) }
+            _dailyVerse.value = verse
+        }
+        viewModelScope.launch {
+            HadithRepository.getDailyHadith(dayOfYear)
+                .onSuccess { _dailyHadith.value = it }
         }
     }
 
     private fun resetIfNewDay() {
         viewModelScope.launch {
-            // FIX: use .first() to wait for the real DataStore value.
-            // The previous stateIn(...).value always returned "" before DataStore
-            // had loaded, causing the count to reset on every app launch.
+            // use .first() to wait for the real DataStore value — avoids resetting
+            // count on every launch before DataStore has loaded
             val savedDate = settingsManager.goalTodayDate.first()
             val today = LocalDate.now().toString()
             if (savedDate != today) {
@@ -6001,13 +6708,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.deenbase.app.data.SettingsManager
-import androidx.compose.ui.platform.LocalContext
 import java.time.LocalDate
+import kotlinx.coroutines.flow.first
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -6024,23 +6731,26 @@ fun DhikrScreen(
     var bismillahEveningDone by remember { mutableStateOf(false) }
     var radituMorningDone by remember { mutableStateOf(false) }
     var radituEveningDone by remember { mutableStateOf(false) }
+    var subhanallahDone by remember { mutableStateOf(false) }
 
+    // All completion states read from DataStore — consistent, no cross-ViewModel scope issues
     LaunchedEffect(Unit) {
         bismillahMorningDone = sm.getDhikrCompletionDate("bismillah", "morning") == today
         bismillahEveningDone = sm.getDhikrCompletionDate("bismillah", "evening") == today
-        radituMorningDone = sm.getDhikrCompletionDate("raditu", "morning") == today
-        radituEveningDone = sm.getDhikrCompletionDate("raditu", "evening") == today
+        radituMorningDone   = sm.getDhikrCompletionDate("raditu", "morning") == today
+        radituEveningDone   = sm.getDhikrCompletionDate("raditu", "evening") == today
+        subhanallahDone     = sm.subhanallahDate.first() == today && sm.subhanallahCount.first() >= 100
     }
 
     var visible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { visible = true }
 
-    val morningAlpha by animateFloatAsState(targetValue = if (visible) 1f else 0f, animationSpec = tween(400, delayMillis = 80), label = "morningAlpha")
-    val morningScale by animateFloatAsState(targetValue = if (visible) 1f else 0.96f, animationSpec = tween(400, delayMillis = 80), label = "morningScale")
+    val morningAlpha by animateFloatAsState(targetValue = if (visible) 1f else 0f, animationSpec = tween(400, delayMillis = 80),  label = "morningAlpha")
+    val morningScale by animateFloatAsState(targetValue = if (visible) 1f else 0.96f, animationSpec = tween(400, delayMillis = 80),  label = "morningScale")
     val eveningAlpha by animateFloatAsState(targetValue = if (visible) 1f else 0f, animationSpec = tween(400, delayMillis = 180), label = "eveningAlpha")
     val eveningScale by animateFloatAsState(targetValue = if (visible) 1f else 0.96f, animationSpec = tween(400, delayMillis = 180), label = "eveningScale")
-    val tasbihAlpha by animateFloatAsState(targetValue = if (visible) 1f else 0f, animationSpec = tween(400, delayMillis = 280), label = "tasbihAlpha")
-    val tasbihScale by animateFloatAsState(targetValue = if (visible) 1f else 0.96f, animationSpec = tween(400, delayMillis = 280), label = "tasbihScale")
+    val tasbihAlpha  by animateFloatAsState(targetValue = if (visible) 1f else 0f, animationSpec = tween(400, delayMillis = 280), label = "tasbihAlpha")
+    val tasbihScale  by animateFloatAsState(targetValue = if (visible) 1f else 0.96f, animationSpec = tween(400, delayMillis = 280), label = "tasbihScale")
 
     val gradientBrush = Brush.verticalGradient(
         colors = listOf(MaterialTheme.colorScheme.background, Color.Transparent)
@@ -6049,13 +6759,7 @@ fun DhikrScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        "Dhikr",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                },
+                title = { Text("Dhikr", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold) },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = Color.Transparent,
                     scrolledContainerColor = Color.Transparent
@@ -6074,90 +6778,24 @@ fun DhikrScreen(
             ) {
                 Spacer(modifier = Modifier.height(innerPadding.calculateTopPadding() + 4.dp))
 
-                // ── MORNING ──────────────────────────────────────────────────
-                Column(
-                    modifier = Modifier.alpha(morningAlpha).scale(morningScale),
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
+                Column(modifier = Modifier.alpha(morningAlpha).scale(morningScale), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     DhikrSectionLabel("Morning Adhkar")
-                    DhikrCard(
-                        title = "Protection from All Harm",
-                        subtitle = "Bismillahil-ladhi la yadurru... x3",
-                        isDone = bismillahMorningDone,
-                        topShape = true, bottomShape = false,
-                        onClick = { onDhikrClick("bismillah", "morning") }
-                    )
-                    DhikrCard(
-                        title = "Contentment with Allah",
-                        subtitle = "Raditu billahi Rabban, wa bil-Islami... x3",
-                        isDone = radituMorningDone,
-                        topShape = false, bottomShape = true,
-                        onClick = { onDhikrClick("raditu", "morning") }
-                    )
+                    DhikrCard("Protection from All Harm", "Bismillahil-ladhi la yadurru... x3", bismillahMorningDone, topShape = true,  bottomShape = false) { onDhikrClick("bismillah", "morning") }
+                    DhikrCard("Contentment with Allah",   "Raditu billahi Rabban, wa bil-Islami... x3",  radituMorningDone,   topShape = false, bottomShape = true)  { onDhikrClick("raditu",    "morning") }
                 }
 
-                // ── EVENING ──────────────────────────────────────────────────
-                Column(
-                    modifier = Modifier.alpha(eveningAlpha).scale(eveningScale),
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
+                Column(modifier = Modifier.alpha(eveningAlpha).scale(eveningScale), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     DhikrSectionLabel("Evening Adhkar")
-                    DhikrCard(
-                        title = "Protection from All Harm",
-                        subtitle = "Bismillahil-ladhi la yadurru... x3",
-                        isDone = bismillahEveningDone,
-                        topShape = true, bottomShape = false,
-                        onClick = { onDhikrClick("bismillah", "evening") }
-                    )
-                    DhikrCard(
-                        title = "Contentment with Allah",
-                        subtitle = "Raditu billahi Rabban, wa bil-Islami... x3",
-                        isDone = radituEveningDone,
-                        topShape = false, bottomShape = true,
-                        onClick = { onDhikrClick("raditu", "evening") }
-                    )
+                    DhikrCard("Protection from All Harm", "Bismillahil-ladhi la yadurru... x3", bismillahEveningDone, topShape = true,  bottomShape = false) { onDhikrClick("bismillah", "evening") }
+                    DhikrCard("Contentment with Allah",   "Raditu billahi Rabban, wa bil-Islami... x3",  radituEveningDone,   topShape = false, bottomShape = true)  { onDhikrClick("raditu",    "evening") }
                 }
 
-                // ── DAILY ADHKAR ──────────────────────────────────────────────
-                Column(
-                    modifier = Modifier.alpha(tasbihAlpha).scale(tasbihScale),
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
+                Column(modifier = Modifier.alpha(tasbihAlpha).scale(tasbihScale), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     DhikrSectionLabel("Daily Adhkar")
-                    Card(
-                        onClick = onSubhanallahClick,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(20.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
-                    ) {
-                        ListItem(
-                            headlineContent = {
-                                Text(
-                                    text = "Forgiveness of All Sins",
-                                    fontWeight = FontWeight.SemiBold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                            },
-                            supportingContent = {
-                                Text(
-                                    text = "Subhanallahi wa bihamdihi. x100",
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            },
-                            colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
-                        )
-                    }
+                    DhikrCard("Forgiveness of All Sins", "Subhanallahi wa bihamdihi. x100", subhanallahDone, topShape = true, bottomShape = true, onClick = onSubhanallahClick)
                 }
 
-                // ── TASBIH ────────────────────────────────────────────────────
-                Column(
-                    modifier = Modifier.alpha(tasbihAlpha).scale(tasbihScale),
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
+                Column(modifier = Modifier.alpha(tasbihAlpha).scale(tasbihScale), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     DhikrSectionLabel("Tasbih")
                     Card(
                         onClick = onTasbihClick,
@@ -6165,18 +6803,8 @@ fun DhikrScreen(
                         shape = RoundedCornerShape(20.dp),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
                     ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(20.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
+                        Row(modifier = Modifier.fillMaxWidth().padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
                             Text("Tasbih Counter", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                            Icon(
-                                imageVector = Icons.Filled.CheckCircle,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(20.dp)
-                            )
                         }
                     }
                 }
@@ -6184,7 +6812,6 @@ fun DhikrScreen(
                 Spacer(modifier = Modifier.height(100.dp))
             }
 
-            // Top gradient overlay — fades content behind the app bar
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -6198,56 +6825,28 @@ fun DhikrScreen(
 
 @Composable
 private fun DhikrSectionLabel(title: String) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 8.dp, top = 8.dp, bottom = 8.dp)
-    )
+    Text(text = title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(start = 8.dp, top = 8.dp, bottom = 8.dp))
 }
 
 @Composable
-private fun DhikrCard(
-    title: String,
-    subtitle: String,
-    isDone: Boolean,
-    topShape: Boolean,
-    bottomShape: Boolean,
-    onClick: () -> Unit
-) {
-    val topRadius = if (topShape) 20.dp else 4.dp
-    val bottomRadius = if (bottomShape) 20.dp else 4.dp
-
+private fun DhikrCard(title: String, subtitle: String, isDone: Boolean, topShape: Boolean, bottomShape: Boolean, onClick: () -> Unit) {
     ListItem(
         headlineContent = {
-            Text(
-                text = title,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                color = if (isDone) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-            )
+            Text(title, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                color = if (isDone) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
         },
         supportingContent = {
-            Text(
-                text = subtitle,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Text(subtitle, maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurfaceVariant)
         },
         trailingContent = {
-            if (isDone) {
-                Icon(
-                    imageVector = Icons.Filled.CheckCircle,
-                    contentDescription = "Done",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(22.dp)
-                )
-            }
+            if (isDone) Icon(Icons.Filled.CheckCircle, contentDescription = "Done", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
         },
         modifier = Modifier
-            .clip(RoundedCornerShape(topStart = topRadius, topEnd = topRadius, bottomStart = bottomRadius, bottomEnd = bottomRadius))
+            .clip(RoundedCornerShape(
+                topStart = if (topShape) 20.dp else 4.dp, topEnd = if (topShape) 20.dp else 4.dp,
+                bottomStart = if (bottomShape) 20.dp else 4.dp, bottomEnd = if (bottomShape) 20.dp else 4.dp
+            ))
             .clickable(onClick = onClick),
         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
     )
@@ -6280,12 +6879,13 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.deenbase.app.R
 import com.deenbase.app.features.dhikr.viewmodel.DhikrViewModel
+import com.deenbase.app.ui.LocalHapticsEnabled
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 data class DhikrContent(
     val id: String,
-    val period: String, // "morning" | "evening"
+    val period: String,
     val arabicText: String,
     val transliteration: String,
     val translation: String,
@@ -6308,6 +6908,7 @@ fun DhikrDetailScreen(
     viewModel: DhikrViewModel = viewModel()
 ) {
     val haptic = LocalHapticFeedback.current
+    val hapticsEnabled = LocalHapticsEnabled.current
     val scope = rememberCoroutineScope()
 
     val count by viewModel.count.collectAsState()
@@ -6350,7 +6951,6 @@ fun DhikrDetailScreen(
         label = "Progress"
     )
 
-    // Completion dialog
     if (showCompletionDialog) {
         AlertDialog(
             onDismissRequest = {},
@@ -6427,7 +7027,6 @@ fun DhikrDetailScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceEvenly
         ) {
-            // Progress ring + count
             Box(contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(
                     progress = { animatedProgress },
@@ -6458,7 +7057,6 @@ fun DhikrDetailScreen(
                 }
             }
 
-            // Arabic text
             Text(
                 text = content.arabicText,
                 fontFamily = arabicFont,
@@ -6468,12 +7066,11 @@ fun DhikrDetailScreen(
                 textAlign = TextAlign.Center
             )
 
-            // TAP button
             FilledTonalButton(
                 onClick = {
                     if (!isComplete) {
                         viewModel.increment()
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        if (hapticsEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         scope.launch {
                             forceSquishTap = true
                             delay(90)
@@ -6508,7 +7105,6 @@ fun DhikrDetailScreen(
                 )
             }
 
-            // Hadith cards
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(2.dp)
@@ -7037,6 +7633,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -7067,6 +7664,7 @@ class SettingsManager(private val context: Context) {
         // App preferences
         val THEME_MODE            = stringPreferencesKey("theme_mode")
         val HAPTICS_ENABLED       = booleanPreferencesKey("haptics_enabled")
+        val OLED_MODE             = booleanPreferencesKey("oled_mode")
 
         // Onboarding
         val ONBOARDING_DONE       = booleanPreferencesKey("onboarding_done")
@@ -7088,112 +7686,58 @@ class SettingsManager(private val context: Context) {
         // Dhikr completion tracking (value = date string "yyyy-MM-dd")
         fun dhikrCompletionKey(dhikrId: String, period: String) =
             stringPreferencesKey("dhikr_${dhikrId}_${period}_date")
+
+        // Verse favourites and bookmarks — stored as "surahId:verseNumber" e.g. "2:255"
+        val FAVOURITE_VERSES  = stringSetPreferencesKey("favourite_verses")
+        val BOOKMARKED_VERSES = stringSetPreferencesKey("bookmarked_verses")
     }
 
     // ── Quran display ─────────────────────────────────────────────────────────
-    val translationLang: Flow<String> = context.dataStore.data.map {
-        it[TRANSLATION_LANG] ?: "english"
-    }
-    val arabicFontStyle: Flow<String> = context.dataStore.data.map {
-        it[ARABIC_FONT_STYLE] ?: "indopak_nastaleeq"
-    }
-    val arabicFontSize: Flow<Float> = context.dataStore.data.map {
-        it[ARABIC_FONT_SIZE] ?: 32f
-    }
-    val translationFontSize: Flow<Float> = context.dataStore.data.map {
-        it[TRANSLATION_FONT_SIZE] ?: 18f
-    }
-    val showTranslation: Flow<Boolean> = context.dataStore.data.map {
-        it[SHOW_TRANSLATION] ?: true
-    }
+    val translationLang: Flow<String> = context.dataStore.data.map { it[TRANSLATION_LANG] ?: "english" }
+    val arabicFontStyle: Flow<String> = context.dataStore.data.map { it[ARABIC_FONT_STYLE] ?: "indopak_nastaleeq" }
+    val arabicFontSize: Flow<Float>   = context.dataStore.data.map { it[ARABIC_FONT_SIZE] ?: 32f }
+    val translationFontSize: Flow<Float> = context.dataStore.data.map { it[TRANSLATION_FONT_SIZE] ?: 18f }
+    val showTranslation: Flow<Boolean>   = context.dataStore.data.map { it[SHOW_TRANSLATION] ?: true }
 
-    suspend fun setTranslationLang(lang: String) {
-        context.dataStore.edit { it[TRANSLATION_LANG] = lang }
-    }
-    suspend fun setArabicFontStyle(style: String) {
-        context.dataStore.edit { it[ARABIC_FONT_STYLE] = style }
-    }
-    suspend fun setArabicFontSize(size: Float) {
-        context.dataStore.edit { it[ARABIC_FONT_SIZE] = size }
-    }
-    suspend fun setTranslationFontSize(size: Float) {
-        context.dataStore.edit { it[TRANSLATION_FONT_SIZE] = size }
-    }
-    suspend fun setShowTranslation(show: Boolean) {
-        context.dataStore.edit { it[SHOW_TRANSLATION] = show }
-    }
+    suspend fun setTranslationLang(lang: String)    { context.dataStore.edit { it[TRANSLATION_LANG] = lang } }
+    suspend fun setArabicFontStyle(style: String)   { context.dataStore.edit { it[ARABIC_FONT_STYLE] = style } }
+    suspend fun setArabicFontSize(size: Float)      { context.dataStore.edit { it[ARABIC_FONT_SIZE] = size } }
+    suspend fun setTranslationFontSize(size: Float) { context.dataStore.edit { it[TRANSLATION_FONT_SIZE] = size } }
+    suspend fun setShowTranslation(show: Boolean)   { context.dataStore.edit { it[SHOW_TRANSLATION] = show } }
 
     // ── Goal tracking ─────────────────────────────────────────────────────────
-    val goalSurahId: Flow<Int> = context.dataStore.data.map {
-        it[GOAL_SURAH_ID] ?: 1
-    }
-    val goalVerse: Flow<Int> = context.dataStore.data.map {
-        it[GOAL_VERSE] ?: 1
-    }
-    val goalDailyTarget: Flow<Int> = context.dataStore.data.map {
-        it[GOAL_DAILY_TARGET] ?: 10
-    }
-    val goalTodayCount: Flow<Int> = context.dataStore.data.map {
-        it[GOAL_TODAY_COUNT] ?: 0
-    }
-    val goalTodayDate: Flow<String> = context.dataStore.data.map {
-        it[GOAL_TODAY_DATE] ?: ""
-    }
+    val goalSurahId: Flow<Int>      = context.dataStore.data.map { it[GOAL_SURAH_ID] ?: 1 }
+    val goalVerse: Flow<Int>        = context.dataStore.data.map { it[GOAL_VERSE] ?: 1 }
+    val goalDailyTarget: Flow<Int>  = context.dataStore.data.map { it[GOAL_DAILY_TARGET] ?: 10 }
+    val goalTodayCount: Flow<Int>   = context.dataStore.data.map { it[GOAL_TODAY_COUNT] ?: 0 }
+    val goalTodayDate: Flow<String> = context.dataStore.data.map { it[GOAL_TODAY_DATE] ?: "" }
 
-    suspend fun setGoalSurahId(id: Int) {
-        context.dataStore.edit { it[GOAL_SURAH_ID] = id }
-    }
-    suspend fun setGoalVerse(verse: Int) {
-        context.dataStore.edit { it[GOAL_VERSE] = verse }
-    }
-    suspend fun setGoalDailyTarget(target: Int) {
-        context.dataStore.edit { it[GOAL_DAILY_TARGET] = target }
-    }
-    suspend fun setGoalTodayCount(count: Int) {
-        context.dataStore.edit { it[GOAL_TODAY_COUNT] = count }
-    }
-    suspend fun setGoalTodayDate(date: String) {
-        context.dataStore.edit { it[GOAL_TODAY_DATE] = date }
-    }
+    suspend fun setGoalSurahId(id: Int)        { context.dataStore.edit { it[GOAL_SURAH_ID] = id } }
+    suspend fun setGoalVerse(verse: Int)        { context.dataStore.edit { it[GOAL_VERSE] = verse } }
+    suspend fun setGoalDailyTarget(target: Int) { context.dataStore.edit { it[GOAL_DAILY_TARGET] = target } }
+    suspend fun setGoalTodayCount(count: Int)   { context.dataStore.edit { it[GOAL_TODAY_COUNT] = count } }
+    suspend fun setGoalTodayDate(date: String)  { context.dataStore.edit { it[GOAL_TODAY_DATE] = date } }
 
     // ── Subhanallahi wa bihamdihi 100x ────────────────────────────────────────
-    val subhanallahCount: Flow<Int> = context.dataStore.data.map {
-        it[SUBHANALLAH_COUNT] ?: 0
-    }
-    val subhanallahDate: Flow<String> = context.dataStore.data.map {
-        it[SUBHANALLAH_DATE] ?: ""
-    }
+    val subhanallahCount: Flow<Int>   = context.dataStore.data.map { it[SUBHANALLAH_COUNT] ?: 0 }
+    val subhanallahDate: Flow<String> = context.dataStore.data.map { it[SUBHANALLAH_DATE] ?: "" }
 
-    suspend fun setSubhanallahCount(count: Int) {
-        context.dataStore.edit { it[SUBHANALLAH_COUNT] = count }
-    }
-    suspend fun setSubhanallahDate(date: String) {
-        context.dataStore.edit { it[SUBHANALLAH_DATE] = date }
-    }
+    suspend fun setSubhanallahCount(count: Int) { context.dataStore.edit { it[SUBHANALLAH_COUNT] = count } }
+    suspend fun setSubhanallahDate(date: String) { context.dataStore.edit { it[SUBHANALLAH_DATE] = date } }
 
     // ── App preferences ───────────────────────────────────────────────────────
-    val themeMode: Flow<String> = context.dataStore.data.map {
-        it[THEME_MODE] ?: "system"
-    }
-    val hapticsEnabled: Flow<Boolean> = context.dataStore.data.map {
-        it[HAPTICS_ENABLED] ?: true
-    }
+    val themeMode: Flow<String>      = context.dataStore.data.map { it[THEME_MODE] ?: "system" }
+    val hapticsEnabled: Flow<Boolean> = context.dataStore.data.map { it[HAPTICS_ENABLED] ?: true }
+    val oledMode: Flow<Boolean>       = context.dataStore.data.map { it[OLED_MODE] ?: false }
 
-    suspend fun setThemeMode(mode: String) {
-        context.dataStore.edit { it[THEME_MODE] = mode }
-    }
-    suspend fun setHapticsEnabled(enabled: Boolean) {
-        context.dataStore.edit { it[HAPTICS_ENABLED] = enabled }
-    }
+    suspend fun setThemeMode(mode: String)      { context.dataStore.edit { it[THEME_MODE] = mode } }
+    suspend fun setHapticsEnabled(enabled: Boolean) { context.dataStore.edit { it[HAPTICS_ENABLED] = enabled } }
+    suspend fun setOledMode(enabled: Boolean)   { context.dataStore.edit { it[OLED_MODE] = enabled } }
 
     // ── Onboarding ────────────────────────────────────────────────────────────
-    val onboardingDone: Flow<Boolean> = context.dataStore.data.map {
-        it[ONBOARDING_DONE] ?: false
-    }
+    val onboardingDone: Flow<Boolean> = context.dataStore.data.map { it[ONBOARDING_DONE] ?: false }
 
-    suspend fun setOnboardingDone(done: Boolean) {
-        context.dataStore.edit { it[ONBOARDING_DONE] = done }
-    }
+    suspend fun setOnboardingDone(done: Boolean) { context.dataStore.edit { it[ONBOARDING_DONE] = done } }
 
     // ── Notification preferences ──────────────────────────────────────────────
     val quranNotifEnabled: Flow<Boolean>       = context.dataStore.data.map { it[QURAN_NOTIF_ENABLED] ?: false }
@@ -7232,6 +7776,29 @@ class SettingsManager(private val context: Context) {
         context.dataStore.edit { it[key] = date }
     }
 
+    // ── Verse favourites ──────────────────────────────────────────────────────
+    val favouriteVerses: Flow<Set<String>> = context.dataStore.data.map { it[FAVOURITE_VERSES] ?: emptySet() }
+
+    suspend fun toggleFavouriteVerse(surahId: Int, verseNumber: Int) {
+        val key = "$surahId:$verseNumber"
+        context.dataStore.edit { prefs ->
+            val current = prefs[FAVOURITE_VERSES] ?: emptySet()
+            prefs[FAVOURITE_VERSES] = if (key in current) current - key else current + key
+        }
+    }
+
+    // ── Verse bookmarks ───────────────────────────────────────────────────────
+    val bookmarkedVerses: Flow<Set<String>> = context.dataStore.data.map { it[BOOKMARKED_VERSES] ?: emptySet() }
+
+    suspend fun toggleBookmarkVerse(surahId: Int, verseNumber: Int) {
+        val key = "$surahId:$verseNumber"
+        context.dataStore.edit { prefs ->
+            val current = prefs[BOOKMARKED_VERSES] ?: emptySet()
+            prefs[BOOKMARKED_VERSES] = if (key in current) current - key else current + key
+        }
+    }
+
+    // ── Reset ─────────────────────────────────────────────────────────────────
     suspend fun resetAllData() {
         context.dataStore.edit { prefs ->
             prefs.remove(GOAL_SURAH_ID)
@@ -7540,6 +8107,223 @@ class EveningAdhkarReceiver : BroadcastReceiver() {
         nm.notify(4001, notification)
     }
 }
+package com.deenbase.app.update
+
+import android.app.DownloadManager
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import androidx.core.content.FileProvider
+import java.io.File
+
+class DownloadCompleteReceiver : BroadcastReceiver() {
+
+    override fun onReceive(context: Context, intent: Intent) {
+        if (intent.action != DownloadManager.ACTION_DOWNLOAD_COMPLETE) return
+
+        val downloadId = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1L)
+        if (downloadId == -1L) return
+
+        val dm = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+        val query = DownloadManager.Query().setFilterById(downloadId)
+        val cursor = dm.query(query)
+
+        if (cursor.moveToFirst()) {
+            val statusCol = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS)
+            val status = cursor.getInt(statusCol)
+
+            if (status == DownloadManager.STATUS_SUCCESSFUL) {
+                val uriCol = cursor.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI)
+                val localUri = cursor.getString(uriCol)
+
+                val file = File(Uri.parse(localUri).path ?: return)
+
+                val apkUri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    FileProvider.getUriForFile(
+                        context,
+                        "${context.packageName}.fileprovider",
+                        file
+                    )
+                } else {
+                    Uri.fromFile(file)
+                }
+
+                val installIntent = Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(apkUri, "application/vnd.android.package-archive")
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+
+                context.startActivity(installIntent)
+            }
+        }
+        cursor.close()
+    }
+}
+package com.deenbase.app.update
+
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import org.json.JSONObject
+import java.util.concurrent.TimeUnit
+
+data class UpdateInfo(
+    val latestVersion: String,
+    val apkDownloadUrl: String
+)
+
+object UpdateChecker {
+
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(10, TimeUnit.SECONDS)
+        .readTimeout(10, TimeUnit.SECONDS)
+        .build()
+
+    private const val API_URL =
+        "https://api.github.com/repos/aftab7xt/DeenBase-App/releases/latest"
+
+    suspend fun checkForUpdate(currentVersion: String): UpdateInfo? = withContext(Dispatchers.IO) {
+        try {
+            val request = Request.Builder()
+                .url(API_URL)
+                .addHeader("Accept", "application/vnd.github+json")
+                .build()
+
+            val response = client.newCall(request).execute()
+            if (!response.isSuccessful) return@withContext null
+
+            val body = response.body?.string() ?: return@withContext null
+            val json = JSONObject(body)
+
+            // Tag is like "v1.1.0" — strip the leading "v"
+            val latestVersion = json.getString("tag_name").trimStart('v')
+
+            if (!isNewer(latestVersion, currentVersion)) return@withContext null
+
+            // Find the APK asset URL
+            val assets = json.getJSONArray("assets")
+            var apkUrl: String? = null
+            for (i in 0 until assets.length()) {
+                val asset = assets.getJSONObject(i)
+                if (asset.getString("name").endsWith(".apk")) {
+                    apkUrl = asset.getString("browser_download_url")
+                    break
+                }
+            }
+
+            apkUrl?.let { UpdateInfo(latestVersion, it) }
+
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    // Returns true if latest > current using semantic versioning
+    private fun isNewer(latest: String, current: String): Boolean {
+        return try {
+            val l = latest.split(".").map { it.toInt() }
+            val c = current.split(".").map { it.toInt() }
+            val size = maxOf(l.size, c.size)
+            for (i in 0 until size) {
+                val lv = l.getOrElse(i) { 0 }
+                val cv = c.getOrElse(i) { 0 }
+                if (lv > cv) return true
+                if (lv < cv) return false
+            }
+            false
+        } catch (e: Exception) {
+            false
+        }
+    }
+}
+package com.deenbase.app.update
+
+import android.app.Application
+import android.app.DownloadManager
+import android.content.Context
+import android.net.Uri
+import android.os.Environment
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import com.deenbase.app.BuildConfig
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+
+data class UpdateUiState(
+    val showDialog: Boolean = false,
+    val latestVersion: String = "",
+    val apkDownloadUrl: String = "",
+    val isDownloading: Boolean = false,
+    val downloadId: Long = -1L,
+    val isChecking: Boolean = false,
+    val noUpdateFound: Boolean = false
+)
+
+class UpdateViewModel(application: Application) : AndroidViewModel(application) {
+
+    private val _state = MutableStateFlow(UpdateUiState())
+    val state: StateFlow<UpdateUiState> = _state.asStateFlow()
+
+    init {
+        checkForUpdate(manual = false)
+    }
+
+    fun checkForUpdate(manual: Boolean = false) {
+        if (_state.value.isChecking) return
+        _state.value = _state.value.copy(isChecking = true, noUpdateFound = false)
+        viewModelScope.launch {
+            val info = UpdateChecker.checkForUpdate(BuildConfig.VERSION_NAME)
+            if (info != null) {
+                _state.value = _state.value.copy(
+                    showDialog = true,
+                    latestVersion = info.latestVersion,
+                    apkDownloadUrl = info.apkDownloadUrl,
+                    isChecking = false,
+                    noUpdateFound = false
+                )
+            } else {
+                _state.value = _state.value.copy(
+                    isChecking = false,
+                    noUpdateFound = manual // only show "up to date" if user asked
+                )
+            }
+        }
+    }
+
+    fun dismissDialog() {
+        _state.value = _state.value.copy(showDialog = false)
+    }
+
+    fun dismissNoUpdate() {
+        _state.value = _state.value.copy(noUpdateFound = false)
+    }
+
+    fun startDownload(context: Context) {
+        val url = _state.value.apkDownloadUrl
+        if (url.isBlank()) return
+
+        _state.value = _state.value.copy(isDownloading = true, showDialog = false)
+
+        val fileName = "DeenBase-v${_state.value.latestVersion}.apk"
+
+        val request = DownloadManager.Request(Uri.parse(url))
+            .setTitle("DeenBase Update")
+            .setDescription("Downloading v${_state.value.latestVersion}...")
+            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+            .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)
+            .setMimeType("application/vnd.android.package-archive")
+
+        val dm = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+        val downloadId = dm.enqueue(request)
+        _state.value = _state.value.copy(downloadId = downloadId)
+    }
+}
 package com.deenbase.app
 
 import org.junit.Test
@@ -7601,8 +8385,8 @@ android {
         applicationId = "com.deenbase.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "1.0.1"
+        versionCode = 5
+        versionName = "1.1.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
