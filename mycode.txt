@@ -1,3 +1,5 @@
+
+--- FILE: ./app/src/main/java/com/deenbase/app/ui/theme/Type.kt ---
 package com.deenbase.app.ui.theme
 
 import android.os.Build
@@ -214,6 +216,8 @@ val Typography = Typography(
         letterSpacing = 0.sp
     )
 )
+
+--- FILE: ./app/src/main/java/com/deenbase/app/ui/theme/Theme.kt ---
 package com.deenbase.app.ui.theme
 
 import android.os.Build
@@ -257,11 +261,15 @@ fun DeenBaseTheme(
         content = content
     )
 }
+
+--- FILE: ./app/src/main/java/com/deenbase/app/ui/LocalHapticsEnabled.kt ---
 package com.deenbase.app.ui
 
 import androidx.compose.runtime.compositionLocalOf
 
 val LocalHapticsEnabled = compositionLocalOf { true }
+
+--- FILE: ./app/src/main/java/com/deenbase/app/MainActivity.kt ---
 package com.deenbase.app
 
 import android.os.Build
@@ -340,6 +348,7 @@ import com.deenbase.app.features.tasbih.ui.TasbihScreen
 import com.deenbase.app.features.tasbih.ui.SubhanallahScreen
 import com.deenbase.app.features.tasbih.viewmodel.TasbihViewModel
 import com.deenbase.app.ui.theme.DeenBaseTheme
+import com.deenbase.app.ui.LocalHapticsEnabled
 import com.deenbase.app.data.SettingsManager
 import com.deenbase.app.update.UpdateViewModel
 
@@ -361,335 +370,375 @@ class MainActivity : ComponentActivity() {
         setContent {
             val settingsManager = remember { SettingsManager(applicationContext) }
             val themeMode by settingsManager.themeMode.collectAsStateWithLifecycle(initialValue = "system")
+            val oledMode by settingsManager.oledMode.collectAsStateWithLifecycle(initialValue = false)
+            val hapticsEnabled by settingsManager.hapticsEnabled.collectAsStateWithLifecycle(initialValue = true)
             val darkTheme = when (themeMode) {
                 "dark"  -> true
                 "light" -> false
                 else    -> isSystemInDarkTheme()
             }
-            DeenBaseTheme(darkTheme = darkTheme) {
-                val view = LocalView.current
-                SideEffect {
-                    val window = (view.context as ComponentActivity).window
-                    WindowInsetsControllerCompat(window, view).isAppearanceLightStatusBars    = !darkTheme
-                    WindowInsetsControllerCompat(window, view).isAppearanceLightNavigationBars = !darkTheme
-                }
+            CompositionLocalProvider(LocalHapticsEnabled provides hapticsEnabled) {
+                DeenBaseTheme(darkTheme = darkTheme, oledMode = oledMode) {
+                    val view = LocalView.current
+                    SideEffect {
+                        val window = (view.context as ComponentActivity).window
+                        WindowInsetsControllerCompat(window, view).isAppearanceLightStatusBars    = !darkTheme
+                        WindowInsetsControllerCompat(window, view).isAppearanceLightNavigationBars = !darkTheme
+                    }
 
-                val updateViewModel: UpdateViewModel = viewModel()
-                val updateState by updateViewModel.state.collectAsStateWithLifecycle()
-                val context = LocalContext.current
+                    // ── Update check ──────────────────────────────────────────
+                    val updateViewModel: UpdateViewModel = viewModel()
+                    val updateState by updateViewModel.state.collectAsStateWithLifecycle()
+                    val context = LocalContext.current
 
-                if (updateState.showDialog) {
-                    AlertDialog(
-                        onDismissRequest = { updateViewModel.dismissDialog() },
-                        title = { Text("Update Available") },
-                        text  = { Text("Version ${updateState.latestVersion} is ready. Update now for the latest features and fixes.") },
-                        confirmButton = { Button(onClick = { updateViewModel.startDownload(context) }) { Text("Update Now") } },
-                        dismissButton = { TextButton(onClick = { updateViewModel.dismissDialog() }) { Text("Remind Me Later") } }
-                    )
-                }
+                    if (updateState.showDialog) {
+                        AlertDialog(
+                            onDismissRequest = { updateViewModel.dismissDialog() },
+                            title = { Text("Update Available") },
+                            text  = { Text("Version ${updateState.latestVersion} is ready. Update now for the latest features and fixes.") },
+                            confirmButton = { Button(onClick = { updateViewModel.startDownload(context) }) { Text("Update Now") } },
+                            dismissButton = { TextButton(onClick = { updateViewModel.dismissDialog() }) { Text("Remind Me Later") } }
+                        )
+                    }
 
-                if (updateState.noUpdateFound) {
-                    AlertDialog(
-                        onDismissRequest = { updateViewModel.dismissNoUpdate() },
-                        title = { Text("You're up to date") },
-                        text  = { Text("DeenBase ${BuildConfig.VERSION_NAME} is the latest version.") },
-                        confirmButton = { Button(onClick = { updateViewModel.dismissNoUpdate() }) { Text("OK") } }
-                    )
-                }
+                    if (updateState.noUpdateFound) {
+                        AlertDialog(
+                            onDismissRequest = { updateViewModel.dismissNoUpdate() },
+                            title = { Text("You're up to date") },
+                            text  = { Text("DeenBase ${BuildConfig.VERSION_NAME} is the latest version.") },
+                            confirmButton = { Button(onClick = { updateViewModel.dismissNoUpdate() }) { Text("OK") } }
+                        )
+                    }
 
-                val navController = rememberNavController()
-                val screens = listOf(Screen.Home, Screen.Quran, Screen.Dhikr, Screen.Settings)
+                    val navController = rememberNavController()
+                    val screens = listOf(Screen.Home, Screen.Quran, Screen.Dhikr, Screen.Settings)
 
-                val onboardingDone by settingsManager.onboardingDone.collectAsStateWithLifecycle(initialValue = null)
+                    // ── Onboarding gate ───────────────────────────────────────
+                    val onboardingDone by settingsManager.onboardingDone
+                        .collectAsStateWithLifecycle(initialValue = null)
 
-                when (onboardingDone) {
-                    null  -> Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
-                    false -> OnboardingScreen(onFinish = {})
-                    else  -> {
-
-                LaunchedEffect(navigateTo) {
-                    when (navigateTo) {
-                        "goal_quran" -> {
-                            val sm = SettingsManager(applicationContext)
-                            val surahId = sm.goalSurahId.first()
-                            val verse   = sm.goalVerse.first()
-                            navController.navigate("goal_surah/$surahId/$verse")
+                    when (onboardingDone) {
+                        null -> {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(MaterialTheme.colorScheme.background)
+                            )
                         }
-                        "subhanallah" -> navController.navigate("subhanallah")
-                        "dhikr"       -> navController.navigate("dhikr")
+                        false -> {
+                            OnboardingScreen(onFinish = { /* recompose handles transition */ })
+                        }
+                        else -> {
+
+                    LaunchedEffect(navigateTo) {
+                        when (navigateTo) {
+                            "goal_quran" -> {
+                                val sm = SettingsManager(applicationContext)
+                                val surahId = sm.goalSurahId.first()
+                                val verse   = sm.goalVerse.first()
+                                navController.navigate("goal_surah/$surahId/$verse")
+                            }
+                            "subhanallah" -> navController.navigate("subhanallah")
+                            "dhikr"       -> navController.navigate("dhikr")
+                        }
                     }
-                }
 
-                val navBackStackEntry by navController.currentBackStackEntryAsState()
-                val currentRoute = navBackStackEntry?.destination?.route
+                    val navBackStackEntry by navController.currentBackStackEntryAsState()
+                    val currentRoute = navBackStackEntry?.destination?.route
 
-                var immediateRoute by remember { mutableStateOf(currentRoute) }
-                DisposableEffect(navController) {
-                    val listener = NavController.OnDestinationChangedListener { _, destination, _ ->
-                        immediateRoute = destination.route
+                    var immediateRoute by remember { mutableStateOf(currentRoute) }
+                    DisposableEffect(navController) {
+                        val listener = NavController.OnDestinationChangedListener { _, destination, _ ->
+                            immediateRoute = destination.route
+                        }
+                        navController.addOnDestinationChangedListener(listener)
+                        onDispose { navController.removeOnDestinationChangedListener(listener) }
                     }
-                    navController.addOnDestinationChangedListener(listener)
-                    onDispose { navController.removeOnDestinationChangedListener(listener) }
-                }
 
-                val isBottomBarVisible =
-                    currentRoute?.startsWith("browse_surah")  != true &&
-                    currentRoute?.startsWith("goal_surah")    != true &&
-                    currentRoute?.startsWith("dhikr_detail")  != true &&
-                    currentRoute != "quran_settings"     &&
-                    currentRoute != "quran_goal"         &&
-                    currentRoute != "app_preferences"    &&
-                    currentRoute != "notification_settings" &&
-                    currentRoute != "about"              &&
-                    currentRoute != "tasbih"             &&
-                    currentRoute != "subhanallah"        &&
-                    currentRoute != "hadith"             &&
-                    currentRoute != "hadith_chapters"    &&
-                    currentRoute != "hadith_list"        &&
-                    currentRoute != "hadith_detail"      &&
-                    currentRoute != "hadith_search"      &&
-                    currentRoute != "saved_verses"
+                    val isBottomBarVisible = currentRoute?.startsWith("browse_surah") != true &&
+                        currentRoute?.startsWith("goal_surah")   != true &&
+                        currentRoute?.startsWith("dhikr_detail") != true &&
+                        currentRoute != "quran_settings" &&
+                        currentRoute != "quran_goal" &&
+                        currentRoute != "app_preferences" &&
+                        currentRoute != "notification_settings" &&
+                        currentRoute != "tasbih" &&
+                        currentRoute != "subhanallah" &&
+                        currentRoute != "hadith" &&
+                        currentRoute != "hadith_chapters" &&
+                        currentRoute != "hadith_list" &&
+                        currentRoute != "hadith_detail" &&
+                        currentRoute != "hadith_search" &&
+                        currentRoute != "saved_verses" &&
+                        currentRoute != "about"
 
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        NavHost(
-                            navController = navController,
-                            startDestination = Screen.Home.route,
-                            modifier = Modifier.fillMaxSize()
-                        ) {
-                            composable(Screen.Home.route) {
-                                HomeScreen(
-                                    onReadQuranClick = { surahId, verse -> navController.navigate("goal_surah/$surahId/$verse") },
-                                    onHadithClick = { navController.navigate("hadith") }
-                                )
-                            }
-                            composable(
-                                route = "tasbih",
-                                enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
-                                popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
+                    Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            NavHost(
+                                navController = navController,
+                                startDestination = Screen.Home.route,
+                                modifier = Modifier.fillMaxSize()
                             ) {
-                                TasbihScreen(viewModel = viewModel())
-                            }
-                            composable(
-                                route = "subhanallah",
-                                enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
-                                popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
-                            ) {
-                                SubhanallahScreen(onNavigateBack = { navController.popBackStack() })
-                            }
-                            composable(Screen.Quran.route) {
-                                QuranScreen(
-                                    onSurahClick = { surahId, surahName ->
-                                        navController.navigate("browse_surah/$surahId/${surahName.replace(" ", "_")}")
-                                    },
-                                    onSavedClick = { navController.navigate("saved_verses") }
-                                )
-                            }
-                            composable(
-                                route = "saved_verses",
-                                enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
-                                popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
-                            ) {
-                                SavedVersesScreen(
-                                    onNavigateBack = { navController.popBackStack() },
-                                    onVerseClick = { surahId, verseNumber, surahName ->
-                                        navController.navigate("browse_surah/$surahId/${surahName.replace(" ", "_")}")
-                                    }
-                                )
-                            }
-                            composable(
-                                route = "browse_surah/{surahId}/{surahName}",
-                                enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
-                                popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
-                            ) { backStackEntry ->
-                                val surahId   = backStackEntry.arguments?.getString("surahId")?.toIntOrNull() ?: 1
-                                val surahName = backStackEntry.arguments?.getString("surahName")?.replace("_", " ") ?: ""
-                                com.deenbase.app.features.quran.ui.ReadingScreen(
-                                    surahId = surahId, surahName = surahName, startVerse = 1, trackGoal = false,
-                                    onNavigateBack = { navController.popBackStack() }
-                                )
-                            }
-                            composable(
-                                route = "goal_surah/{surahId}/{startVerse}",
-                                enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
-                                popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
-                            ) { backStackEntry ->
-                                val surahId    = backStackEntry.arguments?.getString("surahId")?.toIntOrNull() ?: 1
-                                val startVerse = backStackEntry.arguments?.getString("startVerse")?.toIntOrNull() ?: 1
-                                com.deenbase.app.features.quran.ui.ReadingScreen(
-                                    surahId = surahId, startVerse = startVerse, trackGoal = true,
-                                    onNavigateBack = { navController.popBackStack() },
-                                    onNextSurah = { nextId ->
-                                        navController.popBackStack()
-                                        navController.navigate("goal_surah/$nextId/1")
-                                    }
-                                )
-                            }
-                            composable(Screen.Dhikr.route) {
-                                DhikrScreen(
-                                    onDhikrClick = { dhikrId, period -> navController.navigate("dhikr_detail/$dhikrId/$period") },
-                                    onSubhanallahClick = { navController.navigate("subhanallah") },
-                                    onTasbihClick = { navController.navigate("tasbih") }
-                                )
-                            }
-                            composable(
-                                route = "dhikr_detail/{dhikrId}/{period}",
-                                enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
-                                popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
-                            ) { backStackEntry ->
-                                val dhikrId = backStackEntry.arguments?.getString("dhikrId") ?: "bismillah"
-                                val period  = backStackEntry.arguments?.getString("period") ?: "morning"
-                                val content = when (dhikrId) {
-                                    "bismillah" -> getBismillahContent(period)
-                                    "raditu"    -> getRadituContent(period)
-                                    else        -> getBismillahContent(period)
+                                composable(Screen.Home.route) {
+                                    HomeScreen(
+                                        onReadQuranClick = { surahId, verse -> navController.navigate("goal_surah/$surahId/$verse") },
+                                        onHadithClick = { navController.navigate("hadith") }
+                                    )
                                 }
-                                DhikrDetailScreen(content = content, onNavigateBack = { navController.popBackStack() })
-                            }
-                            composable(Screen.Settings.route) {
-                                SettingsScreen(
-                                    onNavigateBack             = { navController.popBackStack() },
-                                    onQuranSettingsClick       = { navController.navigate("quran_settings") },
-                                    onQuranGoalClick           = { navController.navigate("quran_goal") },
-                                    onAppPreferencesClick      = { navController.navigate("app_preferences") },
-                                    onNotificationSettingsClick = { navController.navigate("notification_settings") },
-                                    onAboutClick               = { navController.navigate("about") },
-                                    onCheckForUpdatesClick     = { updateViewModel.checkForUpdate(manual = true) },
-                                    isCheckingForUpdates       = updateState.isChecking
-                                )
-                            }
-                            composable(
-                                route = "about",
-                                enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
-                                popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
-                            ) {
-                                AboutScreen(onNavigateBack = { navController.popBackStack() })
-                            }
-                            composable(
-                                route = "app_preferences",
-                                enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
-                                popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
-                            ) {
-                                AppPreferencesScreen(onNavigateBack = { navController.popBackStack() })
-                            }
-                            composable(
-                                route = "quran_settings",
-                                enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
-                                popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
-                            ) {
-                                QuranSettingsScreen(onNavigateBack = { navController.popBackStack() })
-                            }
-                            composable(
-                                route = "quran_goal",
-                                enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
-                                popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
-                            ) {
-                                QuranGoalScreen(onNavigateBack = { navController.popBackStack() })
-                            }
-                            composable(
-                                route = "notification_settings",
-                                enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
-                                popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
-                            ) {
-                                NotificationSettingsScreen(onNavigateBack = { navController.popBackStack() })
-                            }
-                            composable(
-                                route = "hadith",
-                                enterTransition  = { slideInHorizontally { it }  + fadeIn(tween(300)) },
-                                exitTransition   = { slideOutHorizontally { -it } + fadeOut(tween(300)) },
-                                popEnterTransition = { slideInHorizontally { -it } + fadeIn(tween(300)) },
-                                popExitTransition  = { slideOutHorizontally { it }  + fadeOut(tween(300)) }
-                            ) {
-                                val hadithViewModel: HadithViewModel = viewModel()
-                                HadithScreen(
-                                    onNavigateBack = { navController.popBackStack() },
-                                    onBookClick = { book ->
-                                        hadithViewModel.selectBook(book)
-                                        navController.navigate("hadith_chapters")
-                                    },
-                                    onSearchClick = { navController.navigate("hadith_search") },
-                                    viewModel = hadithViewModel
-                                )
-                            }
-                            composable(
-                                route = "hadith_chapters",
-                                enterTransition  = { slideInHorizontally { it }  + fadeIn(tween(300)) },
-                                exitTransition   = { slideOutHorizontally { -it } + fadeOut(tween(300)) },
-                                popEnterTransition = { slideInHorizontally { -it } + fadeIn(tween(300)) },
-                                popExitTransition  = { slideOutHorizontally { it }  + fadeOut(tween(300)) }
-                            ) {
-                                val hadithViewModel: HadithViewModel = viewModel(viewModelStoreOwner = navController.getBackStackEntry("hadith"))
-                                ChaptersScreen(
-                                    onNavigateBack = { navController.popBackStack() },
-                                    onChapterClick = { chapter ->
-                                        hadithViewModel.selectChapter(chapter)
-                                        navController.navigate("hadith_list")
-                                    },
-                                    viewModel = hadithViewModel
-                                )
-                            }
-                            composable(
-                                route = "hadith_list",
-                                enterTransition  = { slideInHorizontally { it }  + fadeIn(tween(300)) },
-                                exitTransition   = { slideOutHorizontally { -it } + fadeOut(tween(300)) },
-                                popEnterTransition = { slideInHorizontally { -it } + fadeIn(tween(300)) },
-                                popExitTransition  = { slideOutHorizontally { it }  + fadeOut(tween(300)) }
-                            ) {
-                                val hadithViewModel: HadithViewModel = viewModel(viewModelStoreOwner = navController.getBackStackEntry("hadith"))
-                                HadithListScreen(
-                                    onNavigateBack = { navController.popBackStack() },
-                                    onHadithClick = { hadith ->
-                                        hadithViewModel.selectHadith(hadith)
-                                        navController.navigate("hadith_detail")
-                                    },
-                                    viewModel = hadithViewModel
-                                )
-                            }
-                            composable(
-                                route = "hadith_search",
-                                enterTransition  = { slideInHorizontally { it }  + fadeIn(tween(300)) },
-                                exitTransition   = { slideOutHorizontally { -it } + fadeOut(tween(300)) },
-                                popEnterTransition = { slideInHorizontally { -it } + fadeIn(tween(300)) },
-                                popExitTransition  = { slideOutHorizontally { it }  + fadeOut(tween(300)) }
-                            ) {
-                                val hadithViewModel: HadithViewModel = viewModel(viewModelStoreOwner = navController.getBackStackEntry("hadith"))
-                                HadithSearchScreen(
-                                    onNavigateBack = { navController.popBackStack() },
-                                    onHadithClick = { hadith ->
-                                        hadithViewModel.selectHadith(hadith)
-                                        navController.navigate("hadith_detail")
-                                    },
-                                    viewModel = hadithViewModel
-                                )
-                            }
-                            composable(
-                                route = "hadith_detail",
-                                enterTransition  = { slideInHorizontally { it }  + fadeIn(tween(300)) },
-                                exitTransition   = { slideOutHorizontally { -it } + fadeOut(tween(300)) },
-                                popEnterTransition = { slideInHorizontally { -it } + fadeIn(tween(300)) },
-                                popExitTransition  = { slideOutHorizontally { it }  + fadeOut(tween(300)) }
-                            ) {
-                                val hadithViewModel: HadithViewModel = viewModel(viewModelStoreOwner = navController.getBackStackEntry("hadith"))
-                                val selectedHadith = hadithViewModel.selectedHadith.collectAsState().value
-                                selectedHadith?.let {
-                                    HadithDetailScreen(hadith = it, onNavigateBack = { navController.popBackStack() })
+                                composable(
+                                    route = "tasbih",
+                                    enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
+                                    popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
+                                ) {
+                                    val tasbihViewModel: TasbihViewModel = viewModel()
+                                    TasbihScreen(viewModel = tasbihViewModel)
+                                }
+                                composable(
+                                    route = "subhanallah",
+                                    enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
+                                    popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
+                                ) {
+                                    SubhanallahScreen(onNavigateBack = { navController.popBackStack() })
+                                }
+                                composable(Screen.Quran.route) {
+                                    QuranScreen(
+                                        onSurahClick = { surahId, surahName ->
+                                            navController.navigate("browse_surah/$surahId/${surahName.replace(" ", "_")}")
+                                        },
+                                        onSavedClick = { navController.navigate("saved_verses") }
+                                    )
+                                }
+                                composable(
+                                    route = "saved_verses",
+                                    enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
+                                    popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
+                                ) {
+                                    SavedVersesScreen(
+                                        onNavigateBack = { navController.popBackStack() },
+                                        onVerseClick = { surahId, verseNumber, surahName ->
+                                            navController.navigate("browse_surah/$surahId/${surahName.replace(" ", "_")}")
+                                        }
+                                    )
+                                }
+                                composable(
+                                    route = "browse_surah/{surahId}/{surahName}",
+                                    enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
+                                    popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
+                                ) { backStackEntry ->
+                                    val surahId   = backStackEntry.arguments?.getString("surahId")?.toIntOrNull() ?: 1
+                                    val surahName = backStackEntry.arguments?.getString("surahName")?.replace("_", " ") ?: ""
+                                    com.deenbase.app.features.quran.ui.ReadingScreen(
+                                        surahId = surahId,
+                                        surahName = surahName,
+                                        startVerse = 1,
+                                        trackGoal = false,
+                                        onNavigateBack = { navController.popBackStack() }
+                                    )
+                                }
+                                composable(
+                                    route = "goal_surah/{surahId}/{startVerse}",
+                                    enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
+                                    popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
+                                ) { backStackEntry ->
+                                    val surahId    = backStackEntry.arguments?.getString("surahId")?.toIntOrNull() ?: 1
+                                    val startVerse = backStackEntry.arguments?.getString("startVerse")?.toIntOrNull() ?: 1
+                                    com.deenbase.app.features.quran.ui.ReadingScreen(
+                                        surahId = surahId,
+                                        startVerse = startVerse,
+                                        trackGoal = true,
+                                        onNavigateBack = { navController.popBackStack() },
+                                        onNextSurah = { nextId ->
+                                            navController.popBackStack()
+                                            navController.navigate("goal_surah/$nextId/1")
+                                        }
+                                    )
+                                }
+                                composable(Screen.Dhikr.route) {
+                                    DhikrScreen(
+                                        onDhikrClick = { dhikrId, period ->
+                                            navController.navigate("dhikr_detail/$dhikrId/$period")
+                                        },
+                                        onSubhanallahClick = { navController.navigate("subhanallah") },
+                                        onTasbihClick = { navController.navigate("tasbih") }
+                                    )
+                                }
+                                composable(
+                                    route = "dhikr_detail/{dhikrId}/{period}",
+                                    enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
+                                    popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
+                                ) { backStackEntry ->
+                                    val dhikrId = backStackEntry.arguments?.getString("dhikrId") ?: "bismillah"
+                                    val period  = backStackEntry.arguments?.getString("period")  ?: "morning"
+                                    val content = when (dhikrId) {
+                                        "bismillah" -> getBismillahContent(period)
+                                        "raditu"    -> getRadituContent(period)
+                                        else        -> getBismillahContent(period)
+                                    }
+                                    DhikrDetailScreen(
+                                        content = content,
+                                        onNavigateBack = { navController.popBackStack() }
+                                    )
+                                }
+                                composable(Screen.Settings.route) {
+                                    SettingsScreen(
+                                        onNavigateBack = { navController.popBackStack() },
+                                        onQuranSettingsClick = { navController.navigate("quran_settings") },
+                                        onQuranGoalClick = { navController.navigate("quran_goal") },
+                                        onAppPreferencesClick = { navController.navigate("app_preferences") },
+                                        onNotificationSettingsClick = { navController.navigate("notification_settings") },
+                                        onAboutClick = { navController.navigate("about") },
+                                        onCheckForUpdatesClick = { updateViewModel.checkForUpdate(manual = true) },
+                                        isCheckingForUpdates = updateState.isChecking
+                                    )
+                                }
+                                composable(
+                                    route = "about",
+                                    enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
+                                    popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
+                                ) {
+                                    AboutScreen(onNavigateBack = { navController.popBackStack() })
+                                }
+                                composable(
+                                    route = "app_preferences",
+                                    enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
+                                    popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
+                                ) {
+                                    AppPreferencesScreen(onNavigateBack = { navController.popBackStack() })
+                                }
+                                composable(
+                                    route = "quran_settings",
+                                    enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
+                                    popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
+                                ) {
+                                    QuranSettingsScreen(onNavigateBack = { navController.popBackStack() })
+                                }
+                                composable(
+                                    route = "quran_goal",
+                                    enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
+                                    popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
+                                ) {
+                                    QuranGoalScreen(onNavigateBack = { navController.popBackStack() })
+                                }
+                                composable(
+                                    route = "notification_settings",
+                                    enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
+                                    popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
+                                ) {
+                                    NotificationSettingsScreen(onNavigateBack = { navController.popBackStack() })
+                                }
+                                composable(
+                                    route = "hadith",
+                                    enterTransition   = { slideInHorizontally { it } + fadeIn(tween(300)) },
+                                    exitTransition    = { slideOutHorizontally { -it } + fadeOut(tween(300)) },
+                                    popEnterTransition = { slideInHorizontally { -it } + fadeIn(tween(300)) },
+                                    popExitTransition  = { slideOutHorizontally { it } + fadeOut(tween(300)) }
+                                ) {
+                                    val hadithViewModel: HadithViewModel = viewModel()
+                                    HadithScreen(
+                                        onNavigateBack = { navController.popBackStack() },
+                                        onBookClick = { book ->
+                                            hadithViewModel.selectBook(book)
+                                            navController.navigate("hadith_chapters")
+                                        },
+                                        onSearchClick = { navController.navigate("hadith_search") },
+                                        viewModel = hadithViewModel
+                                    )
+                                }
+                                composable(
+                                    route = "hadith_chapters",
+                                    enterTransition   = { slideInHorizontally { it } + fadeIn(tween(300)) },
+                                    exitTransition    = { slideOutHorizontally { -it } + fadeOut(tween(300)) },
+                                    popEnterTransition = { slideInHorizontally { -it } + fadeIn(tween(300)) },
+                                    popExitTransition  = { slideOutHorizontally { it } + fadeOut(tween(300)) }
+                                ) {
+                                    val hadithViewModel: HadithViewModel = viewModel(
+                                        viewModelStoreOwner = navController.getBackStackEntry("hadith")
+                                    )
+                                    ChaptersScreen(
+                                        onNavigateBack = { navController.popBackStack() },
+                                        onChapterClick = { chapter ->
+                                            hadithViewModel.selectChapter(chapter)
+                                            navController.navigate("hadith_list")
+                                        },
+                                        viewModel = hadithViewModel
+                                    )
+                                }
+                                composable(
+                                    route = "hadith_list",
+                                    enterTransition   = { slideInHorizontally { it } + fadeIn(tween(300)) },
+                                    exitTransition    = { slideOutHorizontally { -it } + fadeOut(tween(300)) },
+                                    popEnterTransition = { slideInHorizontally { -it } + fadeIn(tween(300)) },
+                                    popExitTransition  = { slideOutHorizontally { it } + fadeOut(tween(300)) }
+                                ) {
+                                    val hadithViewModel: HadithViewModel = viewModel(
+                                        viewModelStoreOwner = navController.getBackStackEntry("hadith")
+                                    )
+                                    HadithListScreen(
+                                        onNavigateBack = { navController.popBackStack() },
+                                        onHadithClick = { hadith ->
+                                            hadithViewModel.selectHadith(hadith)
+                                            navController.navigate("hadith_detail")
+                                        },
+                                        viewModel = hadithViewModel
+                                    )
+                                }
+                                composable(
+                                    route = "hadith_search",
+                                    enterTransition   = { slideInHorizontally { it } + fadeIn(tween(300)) },
+                                    exitTransition    = { slideOutHorizontally { -it } + fadeOut(tween(300)) },
+                                    popEnterTransition = { slideInHorizontally { -it } + fadeIn(tween(300)) },
+                                    popExitTransition  = { slideOutHorizontally { it } + fadeOut(tween(300)) }
+                                ) {
+                                    val hadithViewModel: HadithViewModel = viewModel(
+                                        viewModelStoreOwner = navController.getBackStackEntry("hadith")
+                                    )
+                                    HadithSearchScreen(
+                                        onNavigateBack = { navController.popBackStack() },
+                                        onHadithClick = { hadith ->
+                                            hadithViewModel.selectHadith(hadith)
+                                            navController.navigate("hadith_detail")
+                                        },
+                                        viewModel = hadithViewModel
+                                    )
+                                }
+                                composable(
+                                    route = "hadith_detail",
+                                    enterTransition   = { slideInHorizontally { it } + fadeIn(tween(300)) },
+                                    exitTransition    = { slideOutHorizontally { -it } + fadeOut(tween(300)) },
+                                    popEnterTransition = { slideInHorizontally { -it } + fadeIn(tween(300)) },
+                                    popExitTransition  = { slideOutHorizontally { it } + fadeOut(tween(300)) }
+                                ) {
+                                    val hadithViewModel: HadithViewModel = viewModel(
+                                        viewModelStoreOwner = navController.getBackStackEntry("hadith")
+                                    )
+                                    val selectedHadith = hadithViewModel.selectedHadith.collectAsState().value
+                                    selectedHadith?.let {
+                                        HadithDetailScreen(
+                                            hadith = it,
+                                            onNavigateBack = { navController.popBackStack() }
+                                        )
+                                    }
                                 }
                             }
-                        }
 
-                        AnimatedVisibility(
-                            visible = isBottomBarVisible,
-                            enter = slideInVertically(animationSpec = tween(350, easing = androidx.compose.animation.core.FastOutSlowInEasing)) { it } + fadeIn(tween(350)),
-                            exit  = slideOutVertically(animationSpec = tween(350, easing = androidx.compose.animation.core.FastOutSlowInEasing)) { it } + fadeOut(tween(350)),
-                            modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 16.dp)
-                        ) {
-                            FloatingBottomBar(screens = screens, navController = navController)
+                            // ── Bottom bar ────────────────────────────────────
+                            AnimatedVisibility(
+                                visible = isBottomBarVisible,
+                                enter = slideInVertically(animationSpec = tween(durationMillis = 350, easing = androidx.compose.animation.core.FastOutSlowInEasing)) { it } + fadeIn(tween(350)),
+                                exit  = slideOutVertically(animationSpec = tween(durationMillis = 350, easing = androidx.compose.animation.core.FastOutSlowInEasing)) { it } + fadeOut(tween(350)),
+                                modifier = Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .navigationBarsPadding()
+                                    .padding(bottom = 16.dp)
+                            ) {
+                                FloatingBottomBar(screens = screens, navController = navController)
+                            }
                         }
-                    }
-                } // end Scaffold
-                } // end else
-                } // end when
-            }
+                    } // end Scaffold
+                    } // end else (onboarding done)
+                    } // end when (onboardingDone)
+                } // end DeenBaseTheme
+            } // end CompositionLocalProvider
         }
     }
 }
@@ -704,17 +753,18 @@ fun FloatingBottomBar(
     val currentDestination = navBackStackEntry?.destination
 
     val selectedIndex = screens.indexOfFirst { screen ->
-        currentDestination?.route == screen.route ||
-        (screen.route == Screen.Quran.route && (
-            currentDestination?.route?.startsWith("browse_surah") == true ||
-            currentDestination?.route?.startsWith("goal_surah")   == true ||
-            currentDestination?.route == "saved_verses"))
+        val isExactMatch   = currentDestination?.route == screen.route
+        val isReadingSurah = screen.route == Screen.Quran.route &&
+            (currentDestination?.route?.startsWith("browse_surah") == true ||
+             currentDestination?.route?.startsWith("goal_surah")   == true ||
+             currentDestination?.route == "saved_verses")
+        isExactMatch || isReadingSurah
     }.coerceAtLeast(0)
 
-    val itemWidth   = 72.dp
-    val spacing     = 12.dp
+    val itemWidth    = 72.dp
+    val spacing      = 12.dp
     val outerPadding = 8.dp
-    val barWidth    = (itemWidth * screens.size) + (spacing * (screens.size - 1)) + (outerPadding * 2)
+    val barWidth     = (itemWidth * screens.size) + (spacing * (screens.size - 1)) + (outerPadding * 2)
 
     val indicatorOffset by animateDpAsState(
         targetValue = (itemWidth + spacing) * selectedIndex,
@@ -733,7 +783,8 @@ fun FloatingBottomBar(
             Box(
                 modifier = Modifier
                     .offset(x = indicatorOffset)
-                    .width(itemWidth).height(48.dp)
+                    .width(itemWidth)
+                    .height(48.dp)
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.secondaryContainer)
             )
@@ -744,37 +795,44 @@ fun FloatingBottomBar(
             ) {
                 screens.forEach { screen ->
                     val isSelected = currentDestination?.route == screen.route ||
-                        (screen.route == Screen.Quran.route && (
-                            currentDestination?.route?.startsWith("browse_surah") == true ||
-                            currentDestination?.route?.startsWith("goal_surah")   == true)) ||
+                        (screen.route == Screen.Quran.route &&
+                            (currentDestination?.route?.startsWith("browse_surah") == true ||
+                             currentDestination?.route?.startsWith("goal_surah")   == true)) ||
                         (screen.route == Screen.Dhikr.route &&
                             currentDestination?.route?.startsWith("dhikr_detail") == true)
                     val interactionSource = remember { MutableInteractionSource() }
                     Box(
                         modifier = Modifier
-                            .width(itemWidth).height(48.dp)
+                            .width(itemWidth)
+                            .height(48.dp)
                             .clip(CircleShape)
-                            .clickable(interactionSource = interactionSource, indication = null) {
-                                navController.navigate(screen.route) {
-                                    popUpTo(navController.graph.startDestinationId) { saveState = true }
-                                    launchSingleTop = true
-                                    restoreState = true
+                            .clickable(
+                                interactionSource = interactionSource,
+                                indication = null,
+                                onClick = {
+                                    navController.navigate(screen.route) {
+                                        popUpTo(navController.graph.startDestinationId) { saveState = true }
+                                        launchSingleTop = true
+                                        restoreState    = true
+                                    }
                                 }
-                            },
+                            ),
                         contentAlignment = Alignment.Center
                     ) {
                         if (screen.route == Screen.Dhikr.route) {
                             Icon(
                                 painter = painterResource(id = R.drawable.ic_dhikr),
                                 contentDescription = screen.label,
-                                tint = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                                tint = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer
+                                       else MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(24.dp)
                             )
                         } else {
                             Icon(
                                 imageVector = screen.icon,
                                 contentDescription = screen.label,
-                                tint = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                                tint = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer
+                                       else MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(24.dp)
                             )
                         }
@@ -784,6 +842,8 @@ fun FloatingBottomBar(
         }
     }
 }
+
+--- FILE: ./app/src/main/java/com/deenbase/app/features/tasbih/ui/SubhanallahScreen.kt ---
 package com.deenbase.app.features.tasbih.ui
 
 import androidx.compose.animation.core.animateDpAsState
@@ -1076,6 +1136,8 @@ fun SubhanallahScreen(
         }
     }
 }
+
+--- FILE: ./app/src/main/java/com/deenbase/app/features/tasbih/ui/TasbihScreen.kt ---
 package com.deenbase.app.features.tasbih.ui
 
 import androidx.compose.animation.core.animateDpAsState
@@ -1222,6 +1284,8 @@ fun TasbihScreen(viewModel: TasbihViewModel) {
         }
     }
 }
+
+--- FILE: ./app/src/main/java/com/deenbase/app/features/tasbih/viewmodel/TasbihViewModel.kt ---
 package com.deenbase.app.features.tasbih.viewmodel
 
 import androidx.compose.runtime.mutableStateOf
@@ -1240,6 +1304,8 @@ class TasbihViewModel : ViewModel() {
         count.value = 0
     }
 }
+
+--- FILE: ./app/src/main/java/com/deenbase/app/features/tasbih/viewmodel/SubhanallahViewModel.kt ---
 package com.deenbase.app.features.tasbih.viewmodel
 
 import android.app.Application
@@ -1293,6 +1359,8 @@ class SubhanallahViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 }
+
+--- FILE: ./app/src/main/java/com/deenbase/app/features/quran/ui/QuranScreen.kt ---
 package com.deenbase.app.features.quran.ui
 
 import androidx.compose.animation.core.animateFloatAsState
@@ -1478,6 +1546,8 @@ fun SurahItem(
         )
     )
 }
+
+--- FILE: ./app/src/main/java/com/deenbase/app/features/quran/ui/ReadingScreen.kt ---
 package com.deenbase.app.features.quran.ui
 
 import androidx.compose.animation.core.tween
@@ -2003,6 +2073,8 @@ fun ReaderBottomNavigation(
         }
     }
 }
+
+--- FILE: ./app/src/main/java/com/deenbase/app/features/quran/ui/SavedVersesScreen.kt ---
 package com.deenbase.app.features.quran.ui
 
 import androidx.compose.foundation.background
@@ -2226,6 +2298,8 @@ private fun SavedVerseItem(
         )
     )
 }
+
+--- FILE: ./app/src/main/java/com/deenbase/app/features/quran/data/QuranRepository.kt ---
 package com.deenbase.app.features.quran.data
 
 import okhttp3.MediaType.Companion.toMediaType
@@ -2414,6 +2488,8 @@ class QuranRepository {
         }
     }
 }
+
+--- FILE: ./app/src/main/java/com/deenbase/app/features/quran/viewmodel/QuranViewModel.kt ---
 package com.deenbase.app.features.quran.viewmodel
 
 import android.app.Application
@@ -2455,6 +2531,8 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 }
+
+--- FILE: ./app/src/main/java/com/deenbase/app/features/quran/viewmodel/ReadingViewModel.kt ---
 package com.deenbase.app.features.quran.viewmodel
 
 import android.app.Application
@@ -2584,6 +2662,8 @@ class ReadingViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 }
+
+--- FILE: ./app/src/main/java/com/deenbase/app/features/quran/viewmodel/SavedVersesViewModel.kt ---
 package com.deenbase.app.features.quran.viewmodel
 
 import android.app.Application
@@ -2665,6 +2745,8 @@ class SavedVersesViewModel(application: Application) : AndroidViewModel(applicat
         viewModelScope.launch { settingsManager.toggleBookmarkVerse(surahId, verseNumber) }
     }
 }
+
+--- FILE: ./app/src/main/java/com/deenbase/app/features/hadith/ui/HadithScreen.kt ---
 package com.deenbase.app.features.hadith.ui
 
 import androidx.compose.foundation.background
@@ -2837,6 +2919,8 @@ private fun BookCard(book: Book, onClick: () -> Unit) {
         }
     }
 }
+
+--- FILE: ./app/src/main/java/com/deenbase/app/features/hadith/ui/HadithDetailScreen.kt ---
 package com.deenbase.app.features.hadith.ui
 
 import androidx.compose.foundation.background
@@ -3110,6 +3194,8 @@ private fun SectionLabel(text: String) {
         modifier = Modifier.padding(start = 8.dp, bottom = 4.dp)
     )
 }
+
+--- FILE: ./app/src/main/java/com/deenbase/app/features/hadith/ui/HadithSearchScreen.kt ---
 package com.deenbase.app.features.hadith.ui
 
 import androidx.compose.foundation.background
@@ -3366,6 +3452,8 @@ fun HadithSearchScreen(
         }
     }
 }
+
+--- FILE: ./app/src/main/java/com/deenbase/app/features/hadith/ui/HadithListScreen.kt ---
 package com.deenbase.app.features.hadith.ui
 
 import androidx.compose.foundation.background
@@ -3570,6 +3658,8 @@ fun HadithListScreen(
         }
     }
 }
+
+--- FILE: ./app/src/main/java/com/deenbase/app/features/hadith/ui/ChaptersScreen.kt ---
 package com.deenbase.app.features.hadith.ui
 
 import androidx.compose.foundation.clickable
@@ -3718,6 +3808,8 @@ fun ChaptersScreen(
         }
     }
 }
+
+--- FILE: ./app/src/main/java/com/deenbase/app/features/hadith/data/HadithModels.kt ---
 package com.deenbase.app.features.hadith.data
 
 // ── Books ─────────────────────────────────────────────────────────────────────
@@ -3779,6 +3871,8 @@ data class HadithPagination(
     val perPage: Int = 20,
     val lastPage: Int = 1
 )
+
+--- FILE: ./app/src/main/java/com/deenbase/app/features/hadith/data/HadithRepository.kt ---
 package com.deenbase.app.features.hadith.data
 
 import kotlinx.coroutines.Dispatchers
@@ -4090,6 +4184,8 @@ object HadithRepository {
         )
     }
 }
+
+--- FILE: ./app/src/main/java/com/deenbase/app/features/hadith/viewmodel/HadithViewModel.kt ---
 package com.deenbase.app.features.hadith.viewmodel
 
 import androidx.lifecycle.ViewModel
@@ -4353,6 +4449,8 @@ class HadithViewModel : ViewModel() {
         _selectedHadith.value = hadith
     }
 }
+
+--- FILE: ./app/src/main/java/com/deenbase/app/features/settings/ui/SettingsScreen.kt ---
 package com.deenbase.app.features.settings.ui
 
 import androidx.compose.animation.core.animateDpAsState
@@ -4376,6 +4474,7 @@ import androidx.compose.material.icons.filled.TrackChanges
 import androidx.compose.material3.*
 import androidx.compose.material3.MaterialTheme.motionScheme
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
@@ -4384,6 +4483,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.deenbase.app.BuildConfig
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -4426,8 +4526,7 @@ fun SettingsScreen(
         ) {
             // ── QURAN ────────────────────────────────────────────────────
             Column(modifier = Modifier.alpha(quranAlpha).scale(quranScale)) {
-                Text("Quran", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(start = 8.dp, bottom = 8.dp, top = 8.dp))
+                SectionLabel("Quran", topPadding = 8.dp)
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     SettingsItem("Quran Settings",  "Font, translation, display", Icons.AutoMirrored.Filled.MenuBook, 0, 2, onQuranSettingsClick)
                     SettingsItem("Reading Goal",    "Daily verse target",         Icons.Filled.TrackChanges,          1, 2, onQuranGoalClick)
@@ -4436,18 +4535,16 @@ fun SettingsScreen(
 
             // ── APP ──────────────────────────────────────────────────────
             Column(modifier = Modifier.alpha(appAlpha).scale(appScale)) {
-                Text("App", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(start = 8.dp, bottom = 8.dp, top = 24.dp))
+                SectionLabel("App")
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    SettingsItem("App Preferences",       "Theme, haptics",               Icons.Filled.Settings,          0, 2, onAppPreferencesClick)
-                    SettingsItem("Notification Settings", "Quran and Dhikr reminders",    Icons.Filled.NotificationsNone, 1, 2, onNotificationSettingsClick)
+                    SettingsItem("App Preferences",       "Theme, haptics",            Icons.Filled.Settings,          0, 2, onAppPreferencesClick)
+                    SettingsItem("Notification Settings", "Quran and Dhikr reminders", Icons.Filled.NotificationsNone, 1, 2, onNotificationSettingsClick)
                 }
             }
 
             // ── ABOUT ────────────────────────────────────────────────────
             Column(modifier = Modifier.alpha(aboutAlpha).scale(aboutScale)) {
-                Text("About", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(start = 8.dp, bottom = 8.dp, top = 24.dp))
+                SectionLabel("About")
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     SettingsItem(
                         title = "About DeenBase",
@@ -4458,7 +4555,7 @@ fun SettingsScreen(
                     )
                     SettingsItem(
                         title = if (isCheckingForUpdates) "Checking..." else "Check for Updates",
-                        subtitle = "Tap to check for the latest version",
+                        subtitle = "v${BuildConfig.VERSION_NAME} installed",
                         leadingIcon = Icons.Filled.SystemUpdateAlt,
                         index = 1, totalItems = 2,
                         onClick = { if (!isCheckingForUpdates) onCheckForUpdatesClick() }
@@ -4467,6 +4564,16 @@ fun SettingsScreen(
             }
         }
     }
+}
+
+@Composable
+fun SectionLabel(text: String, topPadding: androidx.compose.ui.unit.Dp = 24.dp) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(start = 4.dp, bottom = 6.dp, top = topPadding)
+    )
 }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -4484,29 +4591,58 @@ fun SettingsItem(
 
     val topRadius by animateDpAsState(
         targetValue = if (isPressed || index == 0 || totalItems == 1) 20.dp else 4.dp,
-        animationSpec = motionScheme.fastSpatialSpec(), label = "topRounding"
+        animationSpec = motionScheme.fastSpatialSpec(), label = "top"
     )
     val bottomRadius by animateDpAsState(
         targetValue = if (isPressed || index == totalItems - 1 || totalItems == 1) 20.dp else 4.dp,
-        animationSpec = motionScheme.fastSpatialSpec(), label = "bottomRounding"
+        animationSpec = motionScheme.fastSpatialSpec(), label = "bottom"
     )
 
-    ListItem(
-        headlineContent = { Text(title, fontWeight = FontWeight.Medium) },
-        supportingContent = { Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant) },
-        leadingContent = { Icon(imageVector = leadingIcon, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
-        trailingContent = {
-            if (onClick != {}) {
-                Icon(imageVector = Icons.Filled.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        },
-        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+    Surface(
+        shape = RoundedCornerShape(topStart = topRadius, topEnd = topRadius, bottomStart = bottomRadius, bottomEnd = bottomRadius),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(topStart = topRadius, topEnd = topRadius, bottomStart = bottomRadius, bottomEnd = bottomRadius))
             .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
-    )
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = leadingIcon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            if (onClick != {}) {
+                Icon(
+                    imageVector = Icons.Filled.ChevronRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
+    }
 }
+
+--- FILE: ./app/src/main/java/com/deenbase/app/features/settings/ui/QuranSettingsScreen.kt ---
 package com.deenbase.app.features.settings.ui
 
 import androidx.compose.animation.core.animateDpAsState
@@ -4857,6 +4993,8 @@ private fun SwitchSettingsItem(
         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
     )
 }
+
+--- FILE: ./app/src/main/java/com/deenbase/app/features/settings/ui/AppPreferencesScreen.kt ---
 package com.deenbase.app.features.settings.ui
 
 import androidx.compose.animation.core.animateDpAsState
@@ -4871,6 +5009,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.material3.MaterialTheme.motionScheme
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
@@ -4880,148 +5019,46 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.deenbase.app.features.settings.viewmodel.AppPreferencesViewModel
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun SectionLabel(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 8.dp, bottom = 8.dp, top = 24.dp)
-    )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun AppPreferencesScreen(
-    onNavigateBack: () -> Unit,
-    viewModel: AppPreferencesViewModel = viewModel()
+private fun SliderSettingsItem(
+    title: String,
+    value: Float,
+    valueRange: ClosedFloatingPointRange<Float>,
+    displayValue: String,
+    index: Int,
+    totalItems: Int,
+    onValueChange: (Float) -> Unit
 ) {
-    val themeMode by viewModel.themeMode.collectAsState()
-    val hapticsEnabled by viewModel.hapticsEnabled.collectAsState()
-    val oledMode by viewModel.oledMode.collectAsState()
-    var showResetDialog by remember { mutableStateOf(false) }
-
-    val gradientBrush = Brush.verticalGradient(
-        colors = listOf(MaterialTheme.colorScheme.background, Color.Transparent)
+    val topRadius by animateDpAsState(
+        targetValue = if (index == 0 || totalItems == 1) 20.dp else 4.dp,
+        animationSpec = motionScheme.fastSpatialSpec(), label = "top"
+    )
+    val bottomRadius by animateDpAsState(
+        targetValue = if (index == totalItems - 1 || totalItems == 1) 20.dp else 4.dp,
+        animationSpec = motionScheme.fastSpatialSpec(), label = "bottom"
     )
 
-    if (showResetDialog) {
-        AlertDialog(
-            onDismissRequest = { showResetDialog = false },
-            title = { Text("Reset All Data?") },
-            text = { Text("This will clear all your progress, goals, and tasbih counts. This cannot be undone.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.resetAllData()
-                    showResetDialog = false
-                }) {
-                    Text("Reset", color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showResetDialog = false }) {
-                    Text("Cancel")
-                }
+    Surface(
+        shape = RoundedCornerShape(topStart = topRadius, topEnd = topRadius, bottomStart = bottomRadius, bottomEnd = bottomRadius),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(title, fontWeight = FontWeight.Medium, style = MaterialTheme.typography.bodyMedium)
+                Text(displayValue, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
             }
-        )
-    }
-
-    Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                modifier = Modifier.background(brush = gradientBrush),
-                title = {
-                    Text(
-                        "App Preferences",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = Color.Transparent,
-                    scrolledContainerColor = Color.Transparent
-                )
+            Slider(
+                value = value,
+                onValueChange = onValueChange,
+                valueRange = valueRange,
+                modifier = Modifier.fillMaxWidth()
             )
-        },
-        containerColor = MaterialTheme.colorScheme.background
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 16.dp)
-                .verticalScroll(rememberScrollState())
-        ) {
-            Spacer(modifier = Modifier.height(innerPadding.calculateTopPadding()))
-
-            // ── APPEARANCE ────────────────────────────────────────────────────
-            SectionLabel("Appearance")
-
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-
-                // Theme picker (index 0)
-                Surface(
-                    shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 4.dp, bottomEnd = 4.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerLow,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
-                        Text("Theme", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyLarge)
-                        Spacer(modifier = Modifier.height(12.dp))
-                        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                            listOf("system" to "System", "light" to "Light", "dark" to "Dark")
-                                .forEachIndexed { i, (key, label) ->
-                                    SegmentedButton(
-                                        selected = themeMode == key,
-                                        onClick = { viewModel.setThemeMode(key) },
-                                        shape = SegmentedButtonDefaults.itemShape(index = i, count = 3),
-                                        label = { Text(label) }
-                                    )
-                                }
-                        }
-                    }
-                }
-
-                // OLED Mode (index 1)
-                SwitchSettingsItem(
-                    title = "OLED Mode",
-                    subtitle = "Pure black background in dark theme",
-                    checked = oledMode,
-                    index = 1,
-                    totalItems = 3,
-                    onCheckedChange = { viewModel.setOledMode(it) }
-                )
-
-                // Haptics (index 2 — last)
-                SwitchSettingsItem(
-                    title = "Haptics",
-                    subtitle = "Vibration feedback on button taps",
-                    checked = hapticsEnabled,
-                    index = 2,
-                    totalItems = 3,
-                    onCheckedChange = { viewModel.setHapticsEnabled(it) }
-                )
-            }
-
-            // ── DATA ──────────────────────────────────────────────────────────
-            SectionLabel("Data")
-
-            ListItem(
-                headlineContent = {
-                    Text("Reset All Data", fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.error)
-                },
-                supportingContent = { Text("Clear all progress, goals, and tasbih counts") },
-                modifier = Modifier
-                    .clip(RoundedCornerShape(20.dp))
-                    .clickable { showResetDialog = true },
-                colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
-            )
-
-            Spacer(modifier = Modifier.height(100.dp))
         }
     }
 }
@@ -5045,10 +5082,19 @@ private fun SwitchSettingsItem(
         animationSpec = motionScheme.fastSpatialSpec(), label = "bottom"
     )
 
-    ListItem(
-        headlineContent = { Text(title, fontWeight = FontWeight.SemiBold) },
-        supportingContent = { Text(subtitle) },
-        trailingContent = {
+    Surface(
+        shape = RoundedCornerShape(topStart = topRadius, topEnd = topRadius, bottomStart = bottomRadius, bottomEnd = bottomRadius),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
+                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
             Switch(
                 checked = checked,
                 onCheckedChange = onCheckedChange,
@@ -5058,16 +5104,138 @@ private fun SwitchSettingsItem(
                     uncheckedBorderColor = MaterialTheme.colorScheme.outline
                 )
             )
-        },
-        modifier = Modifier.clip(
-            RoundedCornerShape(
-                topStart = topRadius, topEnd = topRadius,
-                bottomStart = bottomRadius, bottomEnd = bottomRadius
-            )
-        ),
-        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
-    )
+        }
+    }
 }
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AppPreferencesScreen(
+    onNavigateBack: () -> Unit,
+    viewModel: AppPreferencesViewModel = viewModel()
+) {
+    val themeMode by viewModel.themeMode.collectAsState()
+    val hapticsEnabled by viewModel.hapticsEnabled.collectAsState()
+    val oledMode by viewModel.oledMode.collectAsState()
+    var showResetDialog by remember { mutableStateOf(false) }
+
+    val gradientBrush = Brush.verticalGradient(
+        colors = listOf(MaterialTheme.colorScheme.background, Color.Transparent)
+    )
+
+    if (showResetDialog) {
+        AlertDialog(
+            onDismissRequest = { showResetDialog = false },
+            title = { Text("Reset All Data?") },
+            text = { Text("This will clear all your progress, goals, and tasbih counts. This cannot be undone.") },
+            confirmButton = {
+                TextButton(onClick = { viewModel.resetAllData(); showResetDialog = false }) {
+                    Text("Reset", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showResetDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
+
+    Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(
+                modifier = Modifier.background(brush = gradientBrush),
+                title = { Text("App Preferences", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = Color.Transparent
+                )
+            )
+        },
+        containerColor = MaterialTheme.colorScheme.background
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp)
+                .verticalScroll(rememberScrollState())
+        ) {
+            Spacer(modifier = Modifier.height(innerPadding.calculateTopPadding()))
+
+            // ── APPEARANCE ────────────────────────────────────────────────────
+            SectionLabel("Appearance", topPadding = 8.dp)
+
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                // Theme picker (index 0)
+                Surface(
+                    shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 4.dp, bottomEnd = 4.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                        Text("Theme", fontWeight = FontWeight.Medium, style = MaterialTheme.typography.bodyMedium)
+                        Spacer(modifier = Modifier.height(10.dp))
+                        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                            listOf("system" to "System", "light" to "Light", "dark" to "Dark")
+                                .forEachIndexed { i, (key, label) ->
+                                    SegmentedButton(
+                                        selected = themeMode == key,
+                                        onClick = { viewModel.setThemeMode(key) },
+                                        shape = SegmentedButtonDefaults.itemShape(index = i, count = 3),
+                                        label = { Text(label) }
+                                    )
+                                }
+                        }
+                    }
+                }
+
+                // OLED Mode (index 1)
+                SwitchSettingsItem(
+                    title = "OLED Mode",
+                    subtitle = "Pure black background in dark theme",
+                    checked = oledMode,
+                    index = 1, totalItems = 3,
+                    onCheckedChange = { viewModel.setOledMode(it) }
+                )
+
+                // Haptics (index 2 — last)
+                SwitchSettingsItem(
+                    title = "Haptics",
+                    subtitle = "Vibration feedback on button taps",
+                    checked = hapticsEnabled,
+                    index = 2, totalItems = 3,
+                    onCheckedChange = { viewModel.setHapticsEnabled(it) }
+                )
+            }
+
+            // ── DATA ──────────────────────────────────────────────────────────
+            SectionLabel("Data")
+
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(20.dp))
+                    .clickable { showResetDialog = true }
+            ) {
+                Row(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Reset All Data", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.error)
+                        Text("Clear all progress, goals, and tasbih counts", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(100.dp))
+        }
+    }
+}
+
+--- FILE: ./app/src/main/java/com/deenbase/app/features/settings/ui/NotificationSettingsScreen.kt ---
 package com.deenbase.app.features.settings.ui
 
 import androidx.compose.animation.AnimatedVisibility
@@ -5101,6 +5269,78 @@ import androidx.core.content.ContextCompat
 import com.deenbase.app.features.settings.viewmodel.NotificationSettingsViewModel
 import java.util.Locale
 
+// ── Compact row helpers ───────────────────────────────────────────────────────
+
+@Composable
+private fun NotifSwitchRow(
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    shape: RoundedCornerShape,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Surface(
+        shape = shape,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
+                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Switch(
+                checked = checked,
+                onCheckedChange = onCheckedChange,
+                colors = SwitchDefaults.colors(
+                    uncheckedTrackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    uncheckedThumbColor = MaterialTheme.colorScheme.onSurface,
+                    uncheckedBorderColor = MaterialTheme.colorScheme.outline
+                )
+            )
+        }
+    }
+}
+
+@Composable
+private fun NotifTimeRow(
+    title: String,
+    time: String,
+    shape: RoundedCornerShape,
+    onClick: () -> Unit
+) {
+    Surface(
+        shape = shape,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        modifier = Modifier.fillMaxWidth().clip(shape).clickable(onClick = onClick)
+    ) {
+        Row(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
+                Text(time, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+}
+
+@Composable
+private fun NotifSectionLabel(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(start = 4.dp, bottom = 6.dp, top = 24.dp)
+    )
+}
+
+private fun formatTime(hour: Int, minute: Int): String {
+    val amPm = if (hour < 12) "AM" else "PM"
+    val h = when { hour == 0 -> 12; hour > 12 -> hour - 12; else -> hour }
+    return String.format(Locale.getDefault(), "%d:%02d %s", h, minute, amPm)
+}
+
+// ── Screen ────────────────────────────────────────────────────────────────────
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NotificationSettingsScreen(
@@ -5121,33 +5361,26 @@ fun NotificationSettingsScreen(
     val dhikrHour2         by viewModel.dhikrHour2.collectAsState()
     val dhikrMinute2       by viewModel.dhikrMinute2.collectAsState()
 
-    // Time picker dialog state
     var showPicker by remember { mutableStateOf(false) }
     var pickerTitle by remember { mutableStateOf("") }
     var pickerState by remember { mutableStateOf<TimePickerState?>(null) }
     var onPickerConfirm by remember { mutableStateOf<(Int, Int) -> Unit>({ _, _ -> }) }
 
-    // Permission handling
     val context = LocalContext.current
     var pendingToggle by remember { mutableStateOf<(() -> Unit)?>(null) }
 
-    fun hasNotifPermission(): Boolean {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
-        } else true
-    }
+    fun hasNotifPermission(): Boolean = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
+        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+    else true
 
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
+    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) pendingToggle?.invoke()
         pendingToggle = null
     }
 
     fun requestOrRun(onGranted: () -> Unit) {
-        if (hasNotifPermission()) {
-            onGranted()
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        if (hasNotifPermission()) { onGranted() }
+        else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             pendingToggle = onGranted
             permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
@@ -5165,47 +5398,21 @@ fun NotificationSettingsScreen(
         AlertDialog(
             onDismissRequest = { showPicker = false },
             title = { Text(pickerTitle) },
-            text = {
-                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    TimePicker(state = state)
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    onPickerConfirm(state.hour, state.minute)
-                    showPicker = false
-                }) { Text("Set") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showPicker = false }) { Text("Cancel") }
-            }
+            text = { Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { TimePicker(state = state) } },
+            confirmButton = { TextButton(onClick = { onPickerConfirm(state.hour, state.minute); showPicker = false }) { Text("Set") } },
+            dismissButton = { TextButton(onClick = { showPicker = false }) { Text("Cancel") } }
         )
     }
 
-    val gradientBrush = Brush.verticalGradient(
-        colors = listOf(MaterialTheme.colorScheme.background, Color.Transparent)
-    )
+    val gradientBrush = Brush.verticalGradient(colors = listOf(MaterialTheme.colorScheme.background, Color.Transparent))
 
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
                 modifier = Modifier.background(brush = gradientBrush),
-                title = {
-                    Text(
-                        "Notification Settings",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = Color.Transparent,
-                    scrolledContainerColor = Color.Transparent
-                )
+                title = { Text("Notification Settings", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold) },
+                navigationIcon = { IconButton(onClick = onNavigateBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") } },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.Transparent, scrolledContainerColor = Color.Transparent)
             )
         },
         containerColor = MaterialTheme.colorScheme.background
@@ -5220,94 +5427,34 @@ fun NotificationSettingsScreen(
 
             // ── QURAN REMINDER ────────────────────────────────────────────
             NotifSectionLabel("Quran Reminder")
-
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-
-                // Enable toggle
-                ListItem(
-                    headlineContent = { Text("Daily Reminder", fontWeight = FontWeight.SemiBold) },
-                    supportingContent = { Text("Get reminded to read your daily Quran goal") },
-                    trailingContent = {
-                        Switch(
-                            checked = quranEnabled,
-                            onCheckedChange = { enabled ->
-                                if (enabled) requestOrRun { viewModel.setQuranEnabled(true) }
-                                else viewModel.setQuranEnabled(false)
-                            },
-                            colors = SwitchDefaults.colors(
-                                uncheckedTrackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                                uncheckedThumbColor = MaterialTheme.colorScheme.onSurface,
-                                uncheckedBorderColor = MaterialTheme.colorScheme.outline
-                            )
-                        )
-                    },
-                    modifier = Modifier.clip(
-                        if (!quranEnabled) RoundedCornerShape(20.dp)
-                        else RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 4.dp, bottomEnd = 4.dp)
-                    ),
-                    colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+                NotifSwitchRow(
+                    title = "Daily Reminder",
+                    subtitle = "Get reminded to read your daily Quran goal",
+                    checked = quranEnabled,
+                    shape = if (!quranEnabled) RoundedCornerShape(20.dp)
+                            else RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 4.dp, bottomEnd = 4.dp),
+                    onCheckedChange = { if (it) requestOrRun { viewModel.setQuranEnabled(true) } else viewModel.setQuranEnabled(false) }
                 )
-
-                AnimatedVisibility(
-                    visible = quranEnabled,
-                    enter = expandVertically(),
-                    exit = shrinkVertically()
-                ) {
+                AnimatedVisibility(visible = quranEnabled, enter = expandVertically(), exit = shrinkVertically()) {
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        NotifTimeRow(
+                            title = "Reminder Time", time = formatTime(quranHour1, quranMinute1),
+                            shape = RoundedCornerShape(4.dp)
+                        ) { openPicker("Quran Reminder Time", quranHour1, quranMinute1) { h, m -> viewModel.setQuranTime1(h, m) } }
 
-                        // Time picker 1
-                        ListItem(
-                            headlineContent = { Text("Reminder Time", fontWeight = FontWeight.SemiBold) },
-                            supportingContent = { Text(formatTime(quranHour1, quranMinute1)) },
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(4.dp))
-                                .clickable {
-                                    openPicker("Quran Reminder Time", quranHour1, quranMinute1) { h, m ->
-                                        viewModel.setQuranTime1(h, m)
-                                    }
-                                },
-                            colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+                        NotifSwitchRow(
+                            title = "Second Reminder", subtitle = "Missed it? Get a follow-up alert",
+                            checked = quranSecondEnabled,
+                            shape = if (!quranSecondEnabled) RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 20.dp, bottomEnd = 20.dp)
+                                    else RoundedCornerShape(4.dp),
+                            onCheckedChange = { viewModel.setQuranSecondEnabled(it) }
                         )
-
-                        // Second reminder toggle
-                        ListItem(
-                            headlineContent = { Text("Second Reminder", fontWeight = FontWeight.SemiBold) },
-                            supportingContent = { Text("Missed it? Get a follow-up alert") },
-                            trailingContent = {
-                                Switch(
-                                    checked = quranSecondEnabled,
-                                    onCheckedChange = { viewModel.setQuranSecondEnabled(it) },
-                                    colors = SwitchDefaults.colors(
-                                        uncheckedTrackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                                        uncheckedThumbColor = MaterialTheme.colorScheme.onSurface,
-                                        uncheckedBorderColor = MaterialTheme.colorScheme.outline
-                                    )
-                                )
-                            },
-                            modifier = Modifier.clip(
-                                if (!quranSecondEnabled) RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 20.dp, bottomEnd = 20.dp)
-                                else RoundedCornerShape(4.dp)
-                            ),
-                            colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
-                        )
-
-                        AnimatedVisibility(
-                            visible = quranSecondEnabled,
-                            enter = expandVertically(),
-                            exit = shrinkVertically()
-                        ) {
-                            ListItem(
-                                headlineContent = { Text("Second Reminder Time", fontWeight = FontWeight.SemiBold) },
-                                supportingContent = { Text(formatTime(quranHour2, quranMinute2)) },
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 20.dp, bottomEnd = 20.dp))
-                                    .clickable {
-                                        openPicker("Second Quran Reminder", quranHour2, quranMinute2) { h, m ->
-                                            viewModel.setQuranTime2(h, m)
-                                        }
-                                    },
-                                colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
-                            )
+                        AnimatedVisibility(visible = quranSecondEnabled, enter = expandVertically(), exit = shrinkVertically()) {
+                            NotifTimeRow(
+                                title = "Second Reminder Time", time = formatTime(quranHour2, quranMinute2),
+                                shape = RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 20.dp, bottomEnd = 20.dp)
+                            ) { openPicker("Second Quran Reminder", quranHour2, quranMinute2) { h, m -> viewModel.setQuranTime2(h, m) } }
                         }
                     }
                 }
@@ -5315,91 +5462,34 @@ fun NotificationSettingsScreen(
 
             // ── DHIKR REMINDER ────────────────────────────────────────────
             NotifSectionLabel("Dhikr Reminder")
-
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-
-                ListItem(
-                    headlineContent = { Text("Daily Reminder", fontWeight = FontWeight.SemiBold) },
-                    supportingContent = { Text("Reminder for Subhanallahi wa bihamdihi ×100") },
-                    trailingContent = {
-                        Switch(
-                            checked = dhikrEnabled,
-                            onCheckedChange = { enabled ->
-                                if (enabled) requestOrRun { viewModel.setDhikrEnabled(true) }
-                                else viewModel.setDhikrEnabled(false)
-                            },
-                            colors = SwitchDefaults.colors(
-                                uncheckedTrackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                                uncheckedThumbColor = MaterialTheme.colorScheme.onSurface,
-                                uncheckedBorderColor = MaterialTheme.colorScheme.outline
-                            )
-                        )
-                    },
-                    modifier = Modifier.clip(
-                        if (!dhikrEnabled) RoundedCornerShape(20.dp)
-                        else RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 4.dp, bottomEnd = 4.dp)
-                    ),
-                    colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+                NotifSwitchRow(
+                    title = "Daily Reminder",
+                    subtitle = "Reminder for Subhanallahi wa bihamdihi ×100",
+                    checked = dhikrEnabled,
+                    shape = if (!dhikrEnabled) RoundedCornerShape(20.dp)
+                            else RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 4.dp, bottomEnd = 4.dp),
+                    onCheckedChange = { if (it) requestOrRun { viewModel.setDhikrEnabled(true) } else viewModel.setDhikrEnabled(false) }
                 )
-
-                AnimatedVisibility(
-                    visible = dhikrEnabled,
-                    enter = expandVertically(),
-                    exit = shrinkVertically()
-                ) {
+                AnimatedVisibility(visible = dhikrEnabled, enter = expandVertically(), exit = shrinkVertically()) {
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        NotifTimeRow(
+                            title = "Reminder Time", time = formatTime(dhikrHour1, dhikrMinute1),
+                            shape = RoundedCornerShape(4.dp)
+                        ) { openPicker("Dhikr Reminder Time", dhikrHour1, dhikrMinute1) { h, m -> viewModel.setDhikrTime1(h, m) } }
 
-                        ListItem(
-                            headlineContent = { Text("Reminder Time", fontWeight = FontWeight.SemiBold) },
-                            supportingContent = { Text(formatTime(dhikrHour1, dhikrMinute1)) },
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(4.dp))
-                                .clickable {
-                                    openPicker("Dhikr Reminder Time", dhikrHour1, dhikrMinute1) { h, m ->
-                                        viewModel.setDhikrTime1(h, m)
-                                    }
-                                },
-                            colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+                        NotifSwitchRow(
+                            title = "Second Reminder", subtitle = "Missed it? Get a follow-up alert",
+                            checked = dhikrSecondEnabled,
+                            shape = if (!dhikrSecondEnabled) RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 20.dp, bottomEnd = 20.dp)
+                                    else RoundedCornerShape(4.dp),
+                            onCheckedChange = { viewModel.setDhikrSecondEnabled(it) }
                         )
-
-                        ListItem(
-                            headlineContent = { Text("Second Reminder", fontWeight = FontWeight.SemiBold) },
-                            supportingContent = { Text("Missed it? Get a follow-up alert") },
-                            trailingContent = {
-                                Switch(
-                                    checked = dhikrSecondEnabled,
-                                    onCheckedChange = { viewModel.setDhikrSecondEnabled(it) },
-                                    colors = SwitchDefaults.colors(
-                                        uncheckedTrackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                                        uncheckedThumbColor = MaterialTheme.colorScheme.onSurface,
-                                        uncheckedBorderColor = MaterialTheme.colorScheme.outline
-                                    )
-                                )
-                            },
-                            modifier = Modifier.clip(
-                                if (!dhikrSecondEnabled) RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 20.dp, bottomEnd = 20.dp)
-                                else RoundedCornerShape(4.dp)
-                            ),
-                            colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
-                        )
-
-                        AnimatedVisibility(
-                            visible = dhikrSecondEnabled,
-                            enter = expandVertically(),
-                            exit = shrinkVertically()
-                        ) {
-                            ListItem(
-                                headlineContent = { Text("Second Reminder Time", fontWeight = FontWeight.SemiBold) },
-                                supportingContent = { Text(formatTime(dhikrHour2, dhikrMinute2)) },
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 20.dp, bottomEnd = 20.dp))
-                                    .clickable {
-                                        openPicker("Second Dhikr Reminder", dhikrHour2, dhikrMinute2) { h, m ->
-                                            viewModel.setDhikrTime2(h, m)
-                                        }
-                                    },
-                                colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
-                            )
+                        AnimatedVisibility(visible = dhikrSecondEnabled, enter = expandVertically(), exit = shrinkVertically()) {
+                            NotifTimeRow(
+                                title = "Second Reminder Time", time = formatTime(dhikrHour2, dhikrMinute2),
+                                shape = RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 20.dp, bottomEnd = 20.dp)
+                            ) { openPicker("Second Dhikr Reminder", dhikrHour2, dhikrMinute2) { h, m -> viewModel.setDhikrTime2(h, m) } }
                         }
                     }
                 }
@@ -5410,25 +5500,7 @@ fun NotificationSettingsScreen(
     }
 }
 
-@Composable
-private fun NotifSectionLabel(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 8.dp, bottom = 8.dp, top = 24.dp)
-    )
-}
-
-private fun formatTime(hour: Int, minute: Int): String {
-    val amPm = if (hour < 12) "AM" else "PM"
-    val h = when {
-        hour == 0 -> 12
-        hour > 12 -> hour - 12
-        else -> hour
-    }
-    return String.format(Locale.getDefault(), "%d:%02d %s", h, minute, amPm)
-}
+--- FILE: ./app/src/main/java/com/deenbase/app/features/settings/ui/QuranGoalScreen.kt ---
 package com.deenbase.app.features.settings.ui
 
 import androidx.compose.animation.core.animateDpAsState
@@ -5677,6 +5749,8 @@ fun QuranGoalScreen(
         }
     }
 }
+
+--- FILE: ./app/src/main/java/com/deenbase/app/features/settings/ui/AboutScreen.kt ---
 package com.deenbase.app.features.settings.ui
 
 import androidx.compose.animation.core.animateFloatAsState
@@ -5937,6 +6011,8 @@ fun AboutScreen(
         }
     }
 }
+
+--- FILE: ./app/src/main/java/com/deenbase/app/features/settings/viewmodel/SettingsViewModel.kt ---
 package com.deenbase.app.features.settings.viewmodel
 
 import android.app.Application
@@ -5966,6 +6042,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         }
     }
 }
+
+--- FILE: ./app/src/main/java/com/deenbase/app/features/settings/viewmodel/QuranSettingsViewModel.kt ---
 package com.deenbase.app.features.settings.viewmodel
 
 import android.app.Application
@@ -6023,6 +6101,8 @@ class QuranSettingsViewModel(application: Application) : AndroidViewModel(applic
         viewModelScope.launch { settingsManager.setShowTranslation(show) }
     }
 }
+
+--- FILE: ./app/src/main/java/com/deenbase/app/features/settings/viewmodel/AppPreferencesViewModel.kt ---
 package com.deenbase.app.features.settings.viewmodel
 
 import android.app.Application
@@ -6059,6 +6139,8 @@ class AppPreferencesViewModel(application: Application) : AndroidViewModel(appli
         viewModelScope.launch { settingsManager.resetAllData() }
     }
 }
+
+--- FILE: ./app/src/main/java/com/deenbase/app/features/settings/viewmodel/NotificationSettingsViewModel.kt ---
 package com.deenbase.app.features.settings.viewmodel
 
 import android.app.Application
@@ -6114,6 +6196,8 @@ class NotificationSettingsViewModel(application: Application) : AndroidViewModel
     fun setDhikrSecondEnabled(v: Boolean) { viewModelScope.launch { sm.setDhikrNotifSecondEnabled(v); reschedule() } }
     fun setDhikrTime2(h: Int, m: Int) { viewModelScope.launch { sm.setDhikrNotifHour2(h); sm.setDhikrNotifMinute2(m); reschedule() } }
 }
+
+--- FILE: ./app/src/main/java/com/deenbase/app/features/home/ui/HomeScreen.kt ---
 package com.deenbase.app.features.home.ui
 
 import androidx.compose.animation.animateContentSize
@@ -6591,6 +6675,8 @@ fun HomeScreen(
         }
     }
 }
+
+--- FILE: ./app/src/main/java/com/deenbase/app/features/home/viewmodel/GoalViewModel.kt ---
 package com.deenbase.app.features.home.viewmodel
 
 import android.app.Application
@@ -6687,6 +6773,8 @@ class GoalViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 }
+
+--- FILE: ./app/src/main/java/com/deenbase/app/features/dhikr/ui/DhikrScreen.kt ---
 package com.deenbase.app.features.dhikr.ui
 
 import androidx.compose.animation.core.animateFloatAsState
@@ -6851,6 +6939,8 @@ private fun DhikrCard(title: String, subtitle: String, isDone: Boolean, topShape
         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
     )
 }
+
+--- FILE: ./app/src/main/java/com/deenbase/app/features/dhikr/ui/DhikrDetailScreen.kt ---
 package com.deenbase.app.features.dhikr.ui
 
 import androidx.compose.animation.core.animateDpAsState
@@ -7152,6 +7242,8 @@ fun DhikrDetailScreen(
         }
     }
 }
+
+--- FILE: ./app/src/main/java/com/deenbase/app/features/dhikr/ui/DhikrData.kt ---
 package com.deenbase.app.features.dhikr.ui
 
 fun getBismillahContent(period: String) = DhikrContent(
@@ -7181,6 +7273,8 @@ fun getRadituContent(period: String) = DhikrContent(
     completionTitle = "Allah is pleased with you",
     completionMessage = "You have declared your contentment with Allah, Islam, and His Prophet ﷺ. May Allah make you among those who are pleased on the Day of Resurrection."
 )
+
+--- FILE: ./app/src/main/java/com/deenbase/app/features/dhikr/viewmodel/DhikrViewModel.kt ---
 package com.deenbase.app.features.dhikr.viewmodel
 
 import android.app.Application
@@ -7231,6 +7325,8 @@ class DhikrViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 }
+
+--- FILE: ./app/src/main/java/com/deenbase/app/features/onboarding/ui/OnboardingScreen.kt ---
 package com.deenbase.app.features.onboarding.ui
 
 import android.Manifest
@@ -7625,6 +7721,8 @@ private fun SatelliteIcon(
         )
     }
 }
+
+--- FILE: ./app/src/main/java/com/deenbase/app/data/SettingsManager.kt ---
 package com.deenbase.app.data
 
 import android.content.Context
@@ -7811,6 +7909,8 @@ class SettingsManager(private val context: Context) {
         }
     }
 }
+
+--- FILE: ./app/src/main/java/com/deenbase/app/notifications/NotificationHelper.kt ---
 package com.deenbase.app.notifications
 
 import android.app.AlarmManager
@@ -7938,6 +8038,8 @@ data class NotificationPrefs(
     val dhikrSecondEnabled: Boolean,
     val dhikrHour2: Int, val dhikrMinute2: Int
 )
+
+--- FILE: ./app/src/main/java/com/deenbase/app/notifications/QuranNotificationReceiver.kt ---
 package com.deenbase.app.notifications
 
 import android.app.NotificationManager
@@ -7972,6 +8074,8 @@ class QuranNotificationReceiver : BroadcastReceiver() {
         nm.notify(notifId, notification)
     }
 }
+
+--- FILE: ./app/src/main/java/com/deenbase/app/notifications/DhikrNotificationReceiver.kt ---
 package com.deenbase.app.notifications
 
 import android.app.NotificationManager
@@ -8006,6 +8110,8 @@ class DhikrNotificationReceiver : BroadcastReceiver() {
         nm.notify(notifId, notification)
     }
 }
+
+--- FILE: ./app/src/main/java/com/deenbase/app/notifications/BootReceiver.kt ---
 package com.deenbase.app.notifications
 
 import android.content.BroadcastReceiver
@@ -8041,6 +8147,8 @@ class BootReceiver : BroadcastReceiver() {
         }
     }
 }
+
+--- FILE: ./app/src/main/java/com/deenbase/app/notifications/MorningAdhkarReceiver.kt ---
 package com.deenbase.app.notifications
 
 import android.app.NotificationManager
@@ -8074,6 +8182,8 @@ class MorningAdhkarReceiver : BroadcastReceiver() {
         nm.notify(3001, notification)
     }
 }
+
+--- FILE: ./app/src/main/java/com/deenbase/app/notifications/EveningAdhkarReceiver.kt ---
 package com.deenbase.app.notifications
 
 import android.app.NotificationManager
@@ -8107,6 +8217,8 @@ class EveningAdhkarReceiver : BroadcastReceiver() {
         nm.notify(4001, notification)
     }
 }
+
+--- FILE: ./app/src/main/java/com/deenbase/app/update/DownloadCompleteReceiver.kt ---
 package com.deenbase.app.update
 
 import android.app.DownloadManager
@@ -8162,6 +8274,8 @@ class DownloadCompleteReceiver : BroadcastReceiver() {
         cursor.close()
     }
 }
+
+--- FILE: ./app/src/main/java/com/deenbase/app/update/UpdateChecker.kt ---
 package com.deenbase.app.update
 
 import kotlinx.coroutines.Dispatchers
@@ -8240,6 +8354,8 @@ object UpdateChecker {
         }
     }
 }
+
+--- FILE: ./app/src/main/java/com/deenbase/app/update/UpdateViewModel.kt ---
 package com.deenbase.app.update
 
 import android.app.Application
@@ -8324,6 +8440,8 @@ class UpdateViewModel(application: Application) : AndroidViewModel(application) 
         _state.value = _state.value.copy(downloadId = downloadId)
     }
 }
+
+--- FILE: ./app/src/test/java/com/deenbase/app/ExampleUnitTest.kt ---
 package com.deenbase.app
 
 import org.junit.Test
@@ -8340,7 +8458,9 @@ class ExampleUnitTest {
     fun addition_isCorrect() {
         assertEquals(4, 2 + 2)
     }
-}package com.deenbase.app
+}
+--- FILE: ./app/src/androidTest/java/com/deenbase/app/ExampleInstrumentedTest.kt ---
+package com.deenbase.app
 
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -8363,114 +8483,4 @@ class ExampleInstrumentedTest {
         val appContext = InstrumentationRegistry.getInstrumentation().targetContext
         assertEquals("com.deenbase.app", appContext.packageName)
     }
-}import java.util.Properties
-
-plugins {
-    alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
-    alias(libs.plugins.kotlin.compose)
 }
-
-// ── Read secrets from local.properties (gitignored) ──────────────────────────
-val localProps = Properties().apply {
-    val f = rootProject.file("local.properties")
-    if (f.exists()) load(f.inputStream())
-}
-
-android {
-    namespace = "com.deenbase.app"
-    compileSdk = 35
-
-    defaultConfig {
-        applicationId = "com.deenbase.app"
-        minSdk = 26
-        targetSdk = 35
-        versionCode = 5
-        versionName = "1.1.2"
-
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-
-        // ── Expose secrets to code via BuildConfig ────────────────────────────
-        buildConfigField("String", "TURSO_URL",   "\"${localProps["TURSO_URL"]}\"")
-        buildConfigField("String", "TURSO_TOKEN", "\"${localProps["TURSO_TOKEN"]}\"")
-    }
-
-    buildTypes {
-        release {
-            isMinifyEnabled = false
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
-        }
-    }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
-    }
-    kotlinOptions {
-        jvmTarget = "11"
-    }
-    buildFeatures {
-        compose = true
-        buildConfig = true
-    }
-}
-
-dependencies {
-    implementation("androidx.core:core-splashscreen:1.0.1")
-    implementation("androidx.datastore:datastore-preferences:1.1.1")
-    implementation(libs.androidx.activity.compose)
-    implementation(platform(libs.androidx.compose.bom))
-    implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.lifecycle.runtime.ktx)
-    implementation("androidx.compose.material3:material3:1.4.0-alpha04")
-    // ---------------------------
-
-    implementation(libs.androidx.ui)
-    implementation(libs.androidx.ui.graphics)
-    implementation("androidx.compose.material:material-icons-extended")
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    implementation("com.squareup.retrofit2:retrofit:2.11.0")
-    implementation("com.squareup.retrofit2:converter-gson:2.11.0")
-    implementation("androidx.media3:media3-exoplayer:1.3.1")
-    implementation("androidx.media3:media3-ui:1.3.1")
-    implementation(libs.androidx.ui.tooling.preview)
-    testImplementation(libs.junit)
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.4")
-    implementation("androidx.navigation:navigation-compose:2.8.5")
-    androidTestImplementation(platform(libs.androidx.compose.bom))
-    androidTestImplementation(libs.androidx.espresso.core)
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.ui.test.junit4)
-    debugImplementation(libs.androidx.ui.test.manifest)
-    debugImplementation(libs.androidx.ui.tooling)
-}
-// Top-level build file where you can add configuration options common to all sub-projects/modules.
-plugins {
-    alias(libs.plugins.android.application) apply false
-    alias(libs.plugins.kotlin.android) apply false
-    alias(libs.plugins.kotlin.compose) apply false
-}pluginManagement {
-    repositories {
-        google {
-            content {
-                includeGroupByRegex("com\\.android.*")
-                includeGroupByRegex("com\\.google.*")
-                includeGroupByRegex("androidx.*")
-            }
-        }
-        mavenCentral()
-        gradlePluginPortal()
-    }
-}
-dependencyResolutionManagement {
-    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-    repositories {
-        google()
-        mavenCentral()
-    }
-}
-
-rootProject.name = "Deen Base"
-include(":app")

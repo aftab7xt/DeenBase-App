@@ -81,7 +81,7 @@ import com.deenbase.app.data.SettingsManager
 import com.deenbase.app.update.UpdateViewModel
 
 sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
-    object Home     : Screen("home",     "Home",     Icons.Filled.Home)
+    object Home     : Screen("home",     "Home",  Icons.Filled.Home)
     object Quran    : Screen("quran",    "Quran",    Icons.AutoMirrored.Filled.MenuBook)
     object Dhikr    : Screen("dhikr",    "Dhikr",    Icons.Filled.HistoryEdu)
     object Settings : Screen("settings", "Settings", Icons.Filled.Settings)
@@ -95,11 +95,13 @@ class MainActivity : ComponentActivity() {
         com.deenbase.app.notifications.NotificationHelper.createChannels(this)
         com.deenbase.app.notifications.NotificationHelper.scheduleAdhkarAlarms(this)
         val navigateTo = intent?.getStringExtra("navigate_to")
+        
         setContent {
             val settingsManager = remember { SettingsManager(applicationContext) }
             val themeMode by settingsManager.themeMode.collectAsStateWithLifecycle(initialValue = "system")
             val oledMode by settingsManager.oledMode.collectAsStateWithLifecycle(initialValue = false)
             val hapticsEnabled by settingsManager.hapticsEnabled.collectAsStateWithLifecycle(initialValue = true)
+           
             val darkTheme = when (themeMode) {
                 "dark"  -> true
                 "light" -> false
@@ -122,10 +124,42 @@ class MainActivity : ComponentActivity() {
                     if (updateState.showDialog) {
                         AlertDialog(
                             onDismissRequest = { updateViewModel.dismissDialog() },
-                            title = { Text("Update Available") },
-                            text  = { Text("Version ${updateState.latestVersion} is ready. Update now for the latest features and fixes.") },
-                            confirmButton = { Button(onClick = { updateViewModel.startDownload(context) }) { Text("Update Now") } },
-                            dismissButton = { TextButton(onClick = { updateViewModel.dismissDialog() }) { Text("Remind Me Later") } }
+                            title = { 
+                                Text(if (updateState.isDownloading) "Downloading Update" else "Update Available") 
+                            },
+                            text  = { 
+                                Column {
+                                    if (updateState.isDownloading) {
+                                        Text("Downloading v${updateState.latestVersion}...")
+                                        Spacer(modifier = Modifier.height(16.dp))
+                                        LinearProgressIndicator(
+                                            progress = { updateState.downloadProgress / 100f },
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+                                        Text(
+                                            text = "${updateState.downloadProgress}%",
+                                            modifier = Modifier.align(Alignment.End).padding(top = 4.dp),
+                                            style = MaterialTheme.typography.labelSmall
+                                        )
+                                    } else {
+                                        Text("Version ${updateState.latestVersion} is ready. Update now for the latest features and fixes.")
+                                    }
+                                }
+                            },
+                            confirmButton = { 
+                                if (!updateState.isDownloading) {
+                                    Button(onClick = { updateViewModel.startDownload(context) }) { 
+                                        Text("Update Now") 
+                                    } 
+                                }
+                            },
+                            dismissButton = { 
+                                if (!updateState.isDownloading) {
+                                    TextButton(onClick = { updateViewModel.dismissDialog() }) { 
+                                        Text("Remind Me Later") 
+                                    } 
+                                }
+                            }
                         )
                     }
 
@@ -142,8 +176,7 @@ class MainActivity : ComponentActivity() {
                     val screens = listOf(Screen.Home, Screen.Quran, Screen.Dhikr, Screen.Settings)
 
                     // ── Onboarding gate ───────────────────────────────────────
-                    val onboardingDone by settingsManager.onboardingDone
-                        .collectAsStateWithLifecycle(initialValue = null)
+                    val onboardingDone by settingsManager.onboardingDone.collectAsStateWithLifecycle(initialValue = null)
 
                     when (onboardingDone) {
                         null -> {
@@ -209,7 +242,9 @@ class MainActivity : ComponentActivity() {
                             ) {
                                 composable(Screen.Home.route) {
                                     HomeScreen(
-                                        onReadQuranClick = { surahId, verse -> navController.navigate("goal_surah/$surahId/$verse") },
+                                        onReadQuranClick = { surahId, verse -> 
+                                            navController.navigate("goal_surah/$surahId/$verse") 
+                                        },
                                         onHadithClick = { navController.navigate("hadith") }
                                     )
                                 }
@@ -253,7 +288,7 @@ class MainActivity : ComponentActivity() {
                                     enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
                                     popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
                                 ) { backStackEntry ->
-                                    val surahId   = backStackEntry.arguments?.getString("surahId")?.toIntOrNull() ?: 1
+                                    val surahId = backStackEntry.arguments?.getString("surahId")?.toIntOrNull() ?: 1
                                     val surahName = backStackEntry.arguments?.getString("surahName")?.replace("_", " ") ?: ""
                                     com.deenbase.app.features.quran.ui.ReadingScreen(
                                         surahId = surahId,
@@ -268,7 +303,7 @@ class MainActivity : ComponentActivity() {
                                     enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
                                     popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
                                 ) { backStackEntry ->
-                                    val surahId    = backStackEntry.arguments?.getString("surahId")?.toIntOrNull() ?: 1
+                                    val surahId = backStackEntry.arguments?.getString("surahId")?.toIntOrNull() ?: 1
                                     val startVerse = backStackEntry.arguments?.getString("startVerse")?.toIntOrNull() ?: 1
                                     com.deenbase.app.features.quran.ui.ReadingScreen(
                                         surahId = surahId,
@@ -523,10 +558,10 @@ fun FloatingBottomBar(
             ) {
                 screens.forEach { screen ->
                     val isSelected = currentDestination?.route == screen.route ||
-                        (screen.route == Screen.Quran.route &&
+                           (screen.route == Screen.Quran.route &&
                             (currentDestination?.route?.startsWith("browse_surah") == true ||
                              currentDestination?.route?.startsWith("goal_surah")   == true)) ||
-                        (screen.route == Screen.Dhikr.route &&
+                           (screen.route == Screen.Dhikr.route &&
                             currentDestination?.route?.startsWith("dhikr_detail") == true)
                     val interactionSource = remember { MutableInteractionSource() }
                     Box(
@@ -552,7 +587,7 @@ fun FloatingBottomBar(
                                 painter = painterResource(id = R.drawable.ic_dhikr),
                                 contentDescription = screen.label,
                                 tint = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer
-                                       else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        else MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(24.dp)
                             )
                         } else {
