@@ -1,5 +1,236 @@
+=== ./app/build.gradle.kts ===
+import java.util.Properties
 
---- FILE: ./app/src/main/java/com/deenbase/app/ui/theme/Type.kt ---
+plugins {
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.kotlin.compose)
+}
+
+// ── Read secrets from local.properties (gitignored) ──────────────────────────
+val localProps = Properties().apply {
+    val f = rootProject.file("local.properties")
+    if (f.exists()) load(f.inputStream())
+}
+
+android {
+    namespace = "com.deenbase.app"
+    compileSdk = 35
+
+    defaultConfig {
+        applicationId = "com.deenbase.app"
+        minSdk = 26
+        targetSdk = 35
+        versionCode = 6
+        versionName = "1.2.0"
+
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // ── Expose secrets to code via BuildConfig ────────────────────────────
+        buildConfigField("String", "TURSO_URL",   "\"${localProps["TURSO_URL"]}\"")
+        buildConfigField("String", "TURSO_TOKEN", "\"${localProps["TURSO_TOKEN"]}\"")
+    }
+
+    buildTypes {
+        release {
+            isMinifyEnabled = false
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+        }
+    }
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
+    }
+    kotlinOptions {
+        jvmTarget = "11"
+    }
+    buildFeatures {
+        compose = true
+        buildConfig = true
+    }
+}
+
+dependencies {
+    implementation("androidx.core:core-splashscreen:1.0.1")
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
+    implementation(libs.androidx.activity.compose)
+    implementation(platform(libs.androidx.compose.bom))
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation("androidx.compose.material3:material3:1.4.0-alpha04")
+    // ---------------------------
+
+    implementation(libs.androidx.ui)
+    implementation(libs.androidx.ui.graphics)
+    implementation("androidx.compose.material:material-icons-extended")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.squareup.retrofit2:retrofit:2.11.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.11.0")
+    implementation("androidx.media3:media3-exoplayer:1.3.1")
+    implementation("androidx.media3:media3-ui:1.3.1")
+    implementation(libs.androidx.ui.tooling.preview)
+    testImplementation(libs.junit)
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.4")
+    implementation("androidx.navigation:navigation-compose:2.8.5")
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.espresso.core)
+    androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.ui.test.junit4)
+    debugImplementation(libs.androidx.ui.test.manifest)
+    debugImplementation(libs.androidx.ui.tooling)
+}
+
+=== ./app/src/main/res/xml/data_extraction_rules.xml ===
+<?xml version="1.0" encoding="utf-8"?><!--
+   Sample data extraction rules file; uncomment and customize as necessary.
+   See https://developer.android.com/about/versions/12/backup-restore#xml-changes
+   for details.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <!-- TODO: Use <include> and <exclude> to control what is backed up.
+        <include .../>
+        <exclude .../>
+        -->
+    </cloud-backup>
+    <!--
+    <device-transfer>
+        <include .../>
+        <exclude .../>
+    </device-transfer>
+    -->
+</data-extraction-rules>
+=== ./app/src/main/res/xml/backup_rules.xml ===
+<?xml version="1.0" encoding="utf-8"?><!--
+   Sample backup rules file; uncomment and customize as necessary.
+   See https://developer.android.com/guide/topics/data/autobackup
+   for details.
+   Note: This file is ignored for devices older than API 31
+   See https://developer.android.com/about/versions/12/backup-restore
+-->
+<full-backup-content>
+    <!--
+   <include domain="sharedpref" path="."/>
+   <exclude domain="sharedpref" path="device.xml"/>
+-->
+</full-backup-content>
+=== ./app/src/main/res/xml/file_paths.xml ===
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <external-path
+        name="external_downloads"
+        path="Download/" />
+</paths>
+
+=== ./app/src/main/res/values/themes.xml ===
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.DeenBase" parent="android:Theme.Material.Light.NoActionBar" />
+
+    <style name="Theme.DeenBase.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#F6F0FF</item>
+        <item name="postSplashScreenTheme">@style/Theme.DeenBase</item>
+    </style>
+</resources>
+
+=== ./app/src/main/res/values/colors.xml ===
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="purple_200">#FFBB86FC</color>
+    <color name="purple_500">#FF6200EE</color>
+    <color name="purple_700">#FF3700B3</color>
+    <color name="teal_200">#FF03DAC5</color>
+    <color name="teal_700">#FF018786</color>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+</resources>
+=== ./app/src/main/res/values/strings.xml ===
+<resources>
+    <string name="app_name">Deen Base</string>
+</resources>
+=== ./app/src/main/res/drawable/ic_launcher_background.xml ===
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#FFFFFF" /> 
+</shape>
+
+=== ./app/src/main/res/drawable/ic_dhikr.xml ===
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Main loop of beads -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#000000"
+        android:strokeWidth="1.5"
+        android:pathData="M12,3 A8,8 0 1,1 4,11" />
+    <!-- Beads on loop -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M12,3 m-1.2,0 a1.2,1.2 0 1,0 2.4,0 a1.2,1.2 0 1,0 -2.4,0" />
+    <path
+        android:fillColor="#000000"
+        android:pathData="M17.5,5.5 m-1.2,0 a1.2,1.2 0 1,0 2.4,0 a1.2,1.2 0 1,0 -2.4,0" />
+    <path
+        android:fillColor="#000000"
+        android:pathData="M20,11 m-1.2,0 a1.2,1.2 0 1,0 2.4,0 a1.2,1.2 0 1,0 -2.4,0" />
+    <path
+        android:fillColor="#000000"
+        android:pathData="M17.5,16.5 m-1.2,0 a1.2,1.2 0 1,0 2.4,0 a1.2,1.2 0 1,0 -2.4,0" />
+    <path
+        android:fillColor="#000000"
+        android:pathData="M12,19 m-1.2,0 a1.2,1.2 0 1,0 2.4,0 a1.2,1.2 0 1,0 -2.4,0" />
+    <path
+        android:fillColor="#000000"
+        android:pathData="M6.5,16.5 m-1.2,0 a1.2,1.2 0 1,0 2.4,0 a1.2,1.2 0 1,0 -2.4,0" />
+    <path
+        android:fillColor="#000000"
+        android:pathData="M4,11 m-1.2,0 a1.2,1.2 0 1,0 2.4,0 a1.2,1.2 0 1,0 -2.4,0" />
+    <!-- Tail/handle -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#000000"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:pathData="M4,11 L2,14 L3,17" />
+    <!-- Tassel bead -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M3,17 m-1.2,0 a1.2,1.2 0 1,0 2.4,0 a1.2,1.2 0 1,0 -2.4,0" />
+</vector>
+
+=== ./app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml ===
+<?xml version="1.0" encoding="utf-8"?>
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@drawable/ic_launcher_background"/>
+    <foreground android:drawable="@drawable/ic_launcher_foreground"/>
+</adaptive-icon>
+
+=== ./app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml ===
+<?xml version="1.0" encoding="utf-8"?>
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@drawable/ic_launcher_background" />
+    <foreground android:drawable="@drawable/ic_launcher_foreground" />
+    <monochrome android:drawable="@drawable/ic_launcher_foreground" />
+</adaptive-icon>
+=== ./app/src/main/res/values-night/themes.xml ===
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.DeenBase" parent="android:Theme.Material.NoActionBar" />
+
+    <style name="Theme.DeenBase.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#131313</item>
+        <item name="postSplashScreenTheme">@style/Theme.DeenBase</item>
+    </style>
+</resources>
+
+=== ./app/src/main/java/com/deenbase/app/ui/theme/Type.kt ===
 package com.deenbase.app.ui.theme
 
 import android.os.Build
@@ -217,7 +448,7 @@ val Typography = Typography(
     )
 )
 
---- FILE: ./app/src/main/java/com/deenbase/app/ui/theme/Theme.kt ---
+=== ./app/src/main/java/com/deenbase/app/ui/theme/Theme.kt ===
 package com.deenbase.app.ui.theme
 
 import android.os.Build
@@ -262,14 +493,14 @@ fun DeenBaseTheme(
     )
 }
 
---- FILE: ./app/src/main/java/com/deenbase/app/ui/LocalHapticsEnabled.kt ---
+=== ./app/src/main/java/com/deenbase/app/ui/LocalHapticsEnabled.kt ===
 package com.deenbase.app.ui
 
 import androidx.compose.runtime.compositionLocalOf
 
 val LocalHapticsEnabled = compositionLocalOf { true }
 
---- FILE: ./app/src/main/java/com/deenbase/app/MainActivity.kt ---
+=== ./app/src/main/java/com/deenbase/app/MainActivity.kt ===
 package com.deenbase.app
 
 import android.os.Build
@@ -843,7 +1074,7 @@ fun FloatingBottomBar(
     }
 }
 
---- FILE: ./app/src/main/java/com/deenbase/app/features/tasbih/ui/SubhanallahScreen.kt ---
+=== ./app/src/main/java/com/deenbase/app/features/tasbih/ui/SubhanallahScreen.kt ===
 package com.deenbase.app.features.tasbih.ui
 
 import androidx.compose.animation.core.animateDpAsState
@@ -1137,7 +1368,7 @@ fun SubhanallahScreen(
     }
 }
 
---- FILE: ./app/src/main/java/com/deenbase/app/features/tasbih/ui/TasbihScreen.kt ---
+=== ./app/src/main/java/com/deenbase/app/features/tasbih/ui/TasbihScreen.kt ===
 package com.deenbase.app.features.tasbih.ui
 
 import androidx.compose.animation.core.animateDpAsState
@@ -1285,7 +1516,7 @@ fun TasbihScreen(viewModel: TasbihViewModel) {
     }
 }
 
---- FILE: ./app/src/main/java/com/deenbase/app/features/tasbih/viewmodel/TasbihViewModel.kt ---
+=== ./app/src/main/java/com/deenbase/app/features/tasbih/viewmodel/TasbihViewModel.kt ===
 package com.deenbase.app.features.tasbih.viewmodel
 
 import androidx.compose.runtime.mutableStateOf
@@ -1305,7 +1536,7 @@ class TasbihViewModel : ViewModel() {
     }
 }
 
---- FILE: ./app/src/main/java/com/deenbase/app/features/tasbih/viewmodel/SubhanallahViewModel.kt ---
+=== ./app/src/main/java/com/deenbase/app/features/tasbih/viewmodel/SubhanallahViewModel.kt ===
 package com.deenbase.app.features.tasbih.viewmodel
 
 import android.app.Application
@@ -1360,7 +1591,7 @@ class SubhanallahViewModel(app: Application) : AndroidViewModel(app) {
     }
 }
 
---- FILE: ./app/src/main/java/com/deenbase/app/features/quran/ui/QuranScreen.kt ---
+=== ./app/src/main/java/com/deenbase/app/features/quran/ui/QuranScreen.kt ===
 package com.deenbase.app.features.quran.ui
 
 import androidx.compose.animation.core.animateFloatAsState
@@ -1547,7 +1778,7 @@ fun SurahItem(
     )
 }
 
---- FILE: ./app/src/main/java/com/deenbase/app/features/quran/ui/ReadingScreen.kt ---
+=== ./app/src/main/java/com/deenbase/app/features/quran/ui/ReadingScreen.kt ===
 package com.deenbase.app.features.quran.ui
 
 import androidx.compose.animation.core.tween
@@ -2074,7 +2305,7 @@ fun ReaderBottomNavigation(
     }
 }
 
---- FILE: ./app/src/main/java/com/deenbase/app/features/quran/ui/SavedVersesScreen.kt ---
+=== ./app/src/main/java/com/deenbase/app/features/quran/ui/SavedVersesScreen.kt ===
 package com.deenbase.app.features.quran.ui
 
 import androidx.compose.foundation.background
@@ -2299,7 +2530,7 @@ private fun SavedVerseItem(
     )
 }
 
---- FILE: ./app/src/main/java/com/deenbase/app/features/quran/data/QuranRepository.kt ---
+=== ./app/src/main/java/com/deenbase/app/features/quran/data/QuranRepository.kt ===
 package com.deenbase.app.features.quran.data
 
 import okhttp3.MediaType.Companion.toMediaType
@@ -2489,7 +2720,7 @@ class QuranRepository {
     }
 }
 
---- FILE: ./app/src/main/java/com/deenbase/app/features/quran/viewmodel/QuranViewModel.kt ---
+=== ./app/src/main/java/com/deenbase/app/features/quran/viewmodel/QuranViewModel.kt ===
 package com.deenbase.app.features.quran.viewmodel
 
 import android.app.Application
@@ -2532,7 +2763,7 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
     }
 }
 
---- FILE: ./app/src/main/java/com/deenbase/app/features/quran/viewmodel/ReadingViewModel.kt ---
+=== ./app/src/main/java/com/deenbase/app/features/quran/viewmodel/ReadingViewModel.kt ===
 package com.deenbase.app.features.quran.viewmodel
 
 import android.app.Application
@@ -2663,7 +2894,7 @@ class ReadingViewModel(application: Application) : AndroidViewModel(application)
     }
 }
 
---- FILE: ./app/src/main/java/com/deenbase/app/features/quran/viewmodel/SavedVersesViewModel.kt ---
+=== ./app/src/main/java/com/deenbase/app/features/quran/viewmodel/SavedVersesViewModel.kt ===
 package com.deenbase.app.features.quran.viewmodel
 
 import android.app.Application
@@ -2746,7 +2977,7 @@ class SavedVersesViewModel(application: Application) : AndroidViewModel(applicat
     }
 }
 
---- FILE: ./app/src/main/java/com/deenbase/app/features/hadith/ui/HadithScreen.kt ---
+=== ./app/src/main/java/com/deenbase/app/features/hadith/ui/HadithScreen.kt ===
 package com.deenbase.app.features.hadith.ui
 
 import androidx.compose.foundation.background
@@ -2920,7 +3151,7 @@ private fun BookCard(book: Book, onClick: () -> Unit) {
     }
 }
 
---- FILE: ./app/src/main/java/com/deenbase/app/features/hadith/ui/HadithDetailScreen.kt ---
+=== ./app/src/main/java/com/deenbase/app/features/hadith/ui/HadithDetailScreen.kt ===
 package com.deenbase.app.features.hadith.ui
 
 import androidx.compose.foundation.background
@@ -3195,7 +3426,7 @@ private fun SectionLabel(text: String) {
     )
 }
 
---- FILE: ./app/src/main/java/com/deenbase/app/features/hadith/ui/HadithSearchScreen.kt ---
+=== ./app/src/main/java/com/deenbase/app/features/hadith/ui/HadithSearchScreen.kt ===
 package com.deenbase.app.features.hadith.ui
 
 import androidx.compose.foundation.background
@@ -3453,7 +3684,7 @@ fun HadithSearchScreen(
     }
 }
 
---- FILE: ./app/src/main/java/com/deenbase/app/features/hadith/ui/HadithListScreen.kt ---
+=== ./app/src/main/java/com/deenbase/app/features/hadith/ui/HadithListScreen.kt ===
 package com.deenbase.app.features.hadith.ui
 
 import androidx.compose.foundation.background
@@ -3659,7 +3890,7 @@ fun HadithListScreen(
     }
 }
 
---- FILE: ./app/src/main/java/com/deenbase/app/features/hadith/ui/ChaptersScreen.kt ---
+=== ./app/src/main/java/com/deenbase/app/features/hadith/ui/ChaptersScreen.kt ===
 package com.deenbase.app.features.hadith.ui
 
 import androidx.compose.foundation.clickable
@@ -3809,7 +4040,7 @@ fun ChaptersScreen(
     }
 }
 
---- FILE: ./app/src/main/java/com/deenbase/app/features/hadith/data/HadithModels.kt ---
+=== ./app/src/main/java/com/deenbase/app/features/hadith/data/HadithModels.kt ===
 package com.deenbase.app.features.hadith.data
 
 // ── Books ─────────────────────────────────────────────────────────────────────
@@ -3872,7 +4103,7 @@ data class HadithPagination(
     val lastPage: Int = 1
 )
 
---- FILE: ./app/src/main/java/com/deenbase/app/features/hadith/data/HadithRepository.kt ---
+=== ./app/src/main/java/com/deenbase/app/features/hadith/data/HadithRepository.kt ===
 package com.deenbase.app.features.hadith.data
 
 import kotlinx.coroutines.Dispatchers
@@ -4185,7 +4416,7 @@ object HadithRepository {
     }
 }
 
---- FILE: ./app/src/main/java/com/deenbase/app/features/hadith/viewmodel/HadithViewModel.kt ---
+=== ./app/src/main/java/com/deenbase/app/features/hadith/viewmodel/HadithViewModel.kt ===
 package com.deenbase.app.features.hadith.viewmodel
 
 import androidx.lifecycle.ViewModel
@@ -4450,7 +4681,7 @@ class HadithViewModel : ViewModel() {
     }
 }
 
---- FILE: ./app/src/main/java/com/deenbase/app/features/settings/ui/SettingsScreen.kt ---
+=== ./app/src/main/java/com/deenbase/app/features/settings/ui/SettingsScreen.kt ===
 package com.deenbase.app.features.settings.ui
 
 import androidx.compose.animation.core.animateDpAsState
@@ -4642,7 +4873,7 @@ fun SettingsItem(
     }
 }
 
---- FILE: ./app/src/main/java/com/deenbase/app/features/settings/ui/QuranSettingsScreen.kt ---
+=== ./app/src/main/java/com/deenbase/app/features/settings/ui/QuranSettingsScreen.kt ===
 package com.deenbase.app.features.settings.ui
 
 import androidx.compose.animation.core.animateDpAsState
@@ -4994,7 +5225,7 @@ private fun SwitchSettingsItem(
     )
 }
 
---- FILE: ./app/src/main/java/com/deenbase/app/features/settings/ui/AppPreferencesScreen.kt ---
+=== ./app/src/main/java/com/deenbase/app/features/settings/ui/AppPreferencesScreen.kt ===
 package com.deenbase.app.features.settings.ui
 
 import androidx.compose.animation.core.animateDpAsState
@@ -5235,7 +5466,7 @@ fun AppPreferencesScreen(
     }
 }
 
---- FILE: ./app/src/main/java/com/deenbase/app/features/settings/ui/NotificationSettingsScreen.kt ---
+=== ./app/src/main/java/com/deenbase/app/features/settings/ui/NotificationSettingsScreen.kt ===
 package com.deenbase.app.features.settings.ui
 
 import androidx.compose.animation.AnimatedVisibility
@@ -5500,7 +5731,7 @@ fun NotificationSettingsScreen(
     }
 }
 
---- FILE: ./app/src/main/java/com/deenbase/app/features/settings/ui/QuranGoalScreen.kt ---
+=== ./app/src/main/java/com/deenbase/app/features/settings/ui/QuranGoalScreen.kt ===
 package com.deenbase.app.features.settings.ui
 
 import androidx.compose.animation.core.animateDpAsState
@@ -5750,7 +5981,7 @@ fun QuranGoalScreen(
     }
 }
 
---- FILE: ./app/src/main/java/com/deenbase/app/features/settings/ui/AboutScreen.kt ---
+=== ./app/src/main/java/com/deenbase/app/features/settings/ui/AboutScreen.kt ===
 package com.deenbase.app.features.settings.ui
 
 import androidx.compose.animation.core.animateFloatAsState
@@ -6012,7 +6243,7 @@ fun AboutScreen(
     }
 }
 
---- FILE: ./app/src/main/java/com/deenbase/app/features/settings/viewmodel/SettingsViewModel.kt ---
+=== ./app/src/main/java/com/deenbase/app/features/settings/viewmodel/SettingsViewModel.kt ===
 package com.deenbase.app.features.settings.viewmodel
 
 import android.app.Application
@@ -6043,7 +6274,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
 }
 
---- FILE: ./app/src/main/java/com/deenbase/app/features/settings/viewmodel/QuranSettingsViewModel.kt ---
+=== ./app/src/main/java/com/deenbase/app/features/settings/viewmodel/QuranSettingsViewModel.kt ===
 package com.deenbase.app.features.settings.viewmodel
 
 import android.app.Application
@@ -6102,7 +6333,7 @@ class QuranSettingsViewModel(application: Application) : AndroidViewModel(applic
     }
 }
 
---- FILE: ./app/src/main/java/com/deenbase/app/features/settings/viewmodel/AppPreferencesViewModel.kt ---
+=== ./app/src/main/java/com/deenbase/app/features/settings/viewmodel/AppPreferencesViewModel.kt ===
 package com.deenbase.app.features.settings.viewmodel
 
 import android.app.Application
@@ -6140,7 +6371,7 @@ class AppPreferencesViewModel(application: Application) : AndroidViewModel(appli
     }
 }
 
---- FILE: ./app/src/main/java/com/deenbase/app/features/settings/viewmodel/NotificationSettingsViewModel.kt ---
+=== ./app/src/main/java/com/deenbase/app/features/settings/viewmodel/NotificationSettingsViewModel.kt ===
 package com.deenbase.app.features.settings.viewmodel
 
 import android.app.Application
@@ -6197,7 +6428,7 @@ class NotificationSettingsViewModel(application: Application) : AndroidViewModel
     fun setDhikrTime2(h: Int, m: Int) { viewModelScope.launch { sm.setDhikrNotifHour2(h); sm.setDhikrNotifMinute2(m); reschedule() } }
 }
 
---- FILE: ./app/src/main/java/com/deenbase/app/features/home/ui/HomeScreen.kt ---
+=== ./app/src/main/java/com/deenbase/app/features/home/ui/HomeScreen.kt ===
 package com.deenbase.app.features.home.ui
 
 import androidx.compose.animation.animateContentSize
@@ -6676,7 +6907,7 @@ fun HomeScreen(
     }
 }
 
---- FILE: ./app/src/main/java/com/deenbase/app/features/home/viewmodel/GoalViewModel.kt ---
+=== ./app/src/main/java/com/deenbase/app/features/home/viewmodel/GoalViewModel.kt ===
 package com.deenbase.app.features.home.viewmodel
 
 import android.app.Application
@@ -6774,7 +7005,7 @@ class GoalViewModel(application: Application) : AndroidViewModel(application) {
     }
 }
 
---- FILE: ./app/src/main/java/com/deenbase/app/features/dhikr/ui/DhikrScreen.kt ---
+=== ./app/src/main/java/com/deenbase/app/features/dhikr/ui/DhikrScreen.kt ===
 package com.deenbase.app.features.dhikr.ui
 
 import androidx.compose.animation.core.animateFloatAsState
@@ -6940,7 +7171,7 @@ private fun DhikrCard(title: String, subtitle: String, isDone: Boolean, topShape
     )
 }
 
---- FILE: ./app/src/main/java/com/deenbase/app/features/dhikr/ui/DhikrDetailScreen.kt ---
+=== ./app/src/main/java/com/deenbase/app/features/dhikr/ui/DhikrDetailScreen.kt ===
 package com.deenbase.app.features.dhikr.ui
 
 import androidx.compose.animation.core.animateDpAsState
@@ -7243,7 +7474,7 @@ fun DhikrDetailScreen(
     }
 }
 
---- FILE: ./app/src/main/java/com/deenbase/app/features/dhikr/ui/DhikrData.kt ---
+=== ./app/src/main/java/com/deenbase/app/features/dhikr/ui/DhikrData.kt ===
 package com.deenbase.app.features.dhikr.ui
 
 fun getBismillahContent(period: String) = DhikrContent(
@@ -7274,7 +7505,7 @@ fun getRadituContent(period: String) = DhikrContent(
     completionMessage = "You have declared your contentment with Allah, Islam, and His Prophet ﷺ. May Allah make you among those who are pleased on the Day of Resurrection."
 )
 
---- FILE: ./app/src/main/java/com/deenbase/app/features/dhikr/viewmodel/DhikrViewModel.kt ---
+=== ./app/src/main/java/com/deenbase/app/features/dhikr/viewmodel/DhikrViewModel.kt ===
 package com.deenbase.app.features.dhikr.viewmodel
 
 import android.app.Application
@@ -7326,7 +7557,7 @@ class DhikrViewModel(application: Application) : AndroidViewModel(application) {
     }
 }
 
---- FILE: ./app/src/main/java/com/deenbase/app/features/onboarding/ui/OnboardingScreen.kt ---
+=== ./app/src/main/java/com/deenbase/app/features/onboarding/ui/OnboardingScreen.kt ===
 package com.deenbase.app.features.onboarding.ui
 
 import android.Manifest
@@ -7722,7 +7953,7 @@ private fun SatelliteIcon(
     }
 }
 
---- FILE: ./app/src/main/java/com/deenbase/app/data/SettingsManager.kt ---
+=== ./app/src/main/java/com/deenbase/app/data/SettingsManager.kt ===
 package com.deenbase.app.data
 
 import android.content.Context
@@ -7910,7 +8141,7 @@ class SettingsManager(private val context: Context) {
     }
 }
 
---- FILE: ./app/src/main/java/com/deenbase/app/notifications/NotificationHelper.kt ---
+=== ./app/src/main/java/com/deenbase/app/notifications/NotificationHelper.kt ===
 package com.deenbase.app.notifications
 
 import android.app.AlarmManager
@@ -8039,7 +8270,7 @@ data class NotificationPrefs(
     val dhikrHour2: Int, val dhikrMinute2: Int
 )
 
---- FILE: ./app/src/main/java/com/deenbase/app/notifications/QuranNotificationReceiver.kt ---
+=== ./app/src/main/java/com/deenbase/app/notifications/QuranNotificationReceiver.kt ===
 package com.deenbase.app.notifications
 
 import android.app.NotificationManager
@@ -8075,7 +8306,7 @@ class QuranNotificationReceiver : BroadcastReceiver() {
     }
 }
 
---- FILE: ./app/src/main/java/com/deenbase/app/notifications/DhikrNotificationReceiver.kt ---
+=== ./app/src/main/java/com/deenbase/app/notifications/DhikrNotificationReceiver.kt ===
 package com.deenbase.app.notifications
 
 import android.app.NotificationManager
@@ -8111,7 +8342,7 @@ class DhikrNotificationReceiver : BroadcastReceiver() {
     }
 }
 
---- FILE: ./app/src/main/java/com/deenbase/app/notifications/BootReceiver.kt ---
+=== ./app/src/main/java/com/deenbase/app/notifications/BootReceiver.kt ===
 package com.deenbase.app.notifications
 
 import android.content.BroadcastReceiver
@@ -8148,7 +8379,7 @@ class BootReceiver : BroadcastReceiver() {
     }
 }
 
---- FILE: ./app/src/main/java/com/deenbase/app/notifications/MorningAdhkarReceiver.kt ---
+=== ./app/src/main/java/com/deenbase/app/notifications/MorningAdhkarReceiver.kt ===
 package com.deenbase.app.notifications
 
 import android.app.NotificationManager
@@ -8183,7 +8414,7 @@ class MorningAdhkarReceiver : BroadcastReceiver() {
     }
 }
 
---- FILE: ./app/src/main/java/com/deenbase/app/notifications/EveningAdhkarReceiver.kt ---
+=== ./app/src/main/java/com/deenbase/app/notifications/EveningAdhkarReceiver.kt ===
 package com.deenbase.app.notifications
 
 import android.app.NotificationManager
@@ -8218,7 +8449,7 @@ class EveningAdhkarReceiver : BroadcastReceiver() {
     }
 }
 
---- FILE: ./app/src/main/java/com/deenbase/app/update/DownloadCompleteReceiver.kt ---
+=== ./app/src/main/java/com/deenbase/app/update/DownloadCompleteReceiver.kt ===
 package com.deenbase.app.update
 
 import android.app.DownloadManager
@@ -8275,7 +8506,7 @@ class DownloadCompleteReceiver : BroadcastReceiver() {
     }
 }
 
---- FILE: ./app/src/main/java/com/deenbase/app/update/UpdateChecker.kt ---
+=== ./app/src/main/java/com/deenbase/app/update/UpdateChecker.kt ===
 package com.deenbase.app.update
 
 import kotlinx.coroutines.Dispatchers
@@ -8355,7 +8586,7 @@ object UpdateChecker {
     }
 }
 
---- FILE: ./app/src/main/java/com/deenbase/app/update/UpdateViewModel.kt ---
+=== ./app/src/main/java/com/deenbase/app/update/UpdateViewModel.kt ===
 package com.deenbase.app.update
 
 import android.app.Application
@@ -8441,7 +8672,71 @@ class UpdateViewModel(application: Application) : AndroidViewModel(application) 
     }
 }
 
---- FILE: ./app/src/test/java/com/deenbase/app/ExampleUnitTest.kt ---
+=== ./app/src/main/AndroidManifest.xml ===
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
+    <application
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.DeenBase"
+        android:enableOnBackInvokedCallback="true"
+        tools:targetApi="31">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:theme="@style/Theme.DeenBase.Starting">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <receiver android:name=".notifications.QuranNotificationReceiver" android:exported="false"/>
+        <receiver android:name=".notifications.DhikrNotificationReceiver" android:exported="false"/>
+        <receiver android:name=".notifications.MorningAdhkarReceiver" android:exported="false"/>
+        <receiver android:name=".notifications.EveningAdhkarReceiver" android:exported="false"/>
+        <receiver android:name=".notifications.BootReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name=".update.DownloadCompleteReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.DOWNLOAD_COMPLETE"/>
+            </intent-filter>
+        </receiver>
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
+    </application>
+
+</manifest>
+
+=== ./app/src/test/java/com/deenbase/app/ExampleUnitTest.kt ===
 package com.deenbase.app
 
 import org.junit.Test
@@ -8459,7 +8754,7 @@ class ExampleUnitTest {
         assertEquals(4, 2 + 2)
     }
 }
---- FILE: ./app/src/androidTest/java/com/deenbase/app/ExampleInstrumentedTest.kt ---
+=== ./app/src/androidTest/java/com/deenbase/app/ExampleInstrumentedTest.kt ===
 package com.deenbase.app
 
 import androidx.test.platform.app.InstrumentationRegistry
@@ -8484,3 +8779,148 @@ class ExampleInstrumentedTest {
         assertEquals("com.deenbase.app", appContext.packageName)
     }
 }
+=== ./gradle/wrapper/gradle-wrapper.properties ===
+#Mon Apr 14 19:24:39 CEST 2025
+distributionBase=GRADLE_USER_HOME
+distributionPath=wrapper/dists
+distributionUrl=https\://services.gradle.org/distributions/gradle-9.3.1-bin.zip
+zipStoreBase=GRADLE_USER_HOME
+zipStorePath=wrapper/dists
+
+=== ./build.gradle.kts ===
+// Top-level build file where you can add configuration options common to all sub-projects/modules.
+plugins {
+    alias(libs.plugins.android.application) apply false
+    alias(libs.plugins.kotlin.android) apply false
+    alias(libs.plugins.kotlin.compose) apply false
+}
+=== ./settings.gradle.kts ===
+pluginManagement {
+    repositories {
+        google {
+            content {
+                includeGroupByRegex("com\\.android.*")
+                includeGroupByRegex("com\\.google.*")
+                includeGroupByRegex("androidx.*")
+            }
+        }
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+rootProject.name = "Deen Base"
+include(":app")
+
+=== ./gradle.properties ===
+# Project-wide Gradle settings.
+# IDE (e.g. Android Studio) users:
+# Gradle settings configured through the IDE *will override*
+# any settings specified in this file.
+# For more details on how to configure your build environment visit
+# http://www.gradle.org/docs/current/userguide/build_environment.html
+# Specifies the JVM arguments used for the daemon process.
+# The setting is particularly useful for tweaking memory settings.
+org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+# When configured, Gradle will run in incubating parallel mode.
+# This option should only be used with decoupled projects. For more details, visit
+# https://developer.android.com/r/tools/gradle-multi-project-decoupled-projects
+# org.gradle.parallel=true
+# AndroidX package structure to make it clearer which packages are bundled with the
+# Android operating system, and which are packaged with your app's APK
+# https://developer.android.com/topic/libraries/support-library/androidx-rn
+android.useAndroidX=true
+# Kotlin code style for this project: "official" or "obsolete":
+kotlin.code.style=official
+# Enables namespacing of each library's R class so that its R class includes only the
+# resources declared in the library itself and none from the library's dependencies,
+# thereby reducing the size of the R class for that library
+android.nonTransitiveRClass=true
+=== ./local.properties ===
+TURSO_TOKEN=eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3NzI2NDEyNzYsImlkIjoiMDE5Y2I5YTQtNWYwMS03NzkwLThiOTAtZGY2Mzg1ZDlmZTZkIiwicmlkIjoiMTQyNDQ1YmUtMWQ5Ny00ZWQ4LWJlNjMtNzBlYjgwOTk2MTY4In0.7y_z-_vEdIfE09DdfTlVSMC__4LFCwhl2KADvT6h8hJLDrkyMbtW-c1t708BVKB4sVQInn6nwsD0CcUqjDOEAw
+TURSO_URL=https://deen-base-aftab.aws-ap-south-1.turso.io/v2/pipeline
+
+=== ./README.md ===
+# DeenBase
+
+A free, open-source Islamic Android app built for Muslims who want a clean, distraction-free experience. Read Quran, explore Hadith, and maintain daily Dhikr — all in one place.
+
+No ads. No clutter. Just content.
+
+---
+
+## Features
+
+### 📖 Quran
+- Read all 114 Surahs with English and Urdu translation
+- Adjustable Arabic font size and style
+- Set a daily reading goal and track your progress
+
+### 📚 Hadith
+- 35,000+ authentic Hadiths from 7 major collections
+  - Sahih al-Bukhari, Sahih Muslim, Abu Dawud, Tirmidhi, Ibn Majah, Nasai, Muwatta Malik
+- Browse by Book -> Chapter -> Hadith
+- Full-text search across the entire database
+- Grade shown for each Hadith
+
+### 📿 Dhikr and Tasbih
+- Morning and Evening Adhkar
+- Tasbih Counter
+
+### 🔔 Notifications
+- Daily Quran goal reminders
+- Morning and Evening Dhikr reminders
+- Fully customizable notification times
+
+### 🎨 Design
+- Material 3 Expressive
+- Dark and Light theme
+- Smooth animations throughout
+
+---
+
+## 📥 Download
+
+Get the latest APK from the [Releases](https://github.com/aftab7xt/DeenBase-App/releases) page.
+
+---
+
+## 🛠 Tech Stack
+
+- **Language:** Kotlin
+- **UI:** Jetpack Compose + Material 3 Expressive
+- **Database:** Turso (libSQL cloud SQLite)
+- **Networking:** OkHttp
+- **Min SDK:** Android 8.0 (API 26)
+
+---
+
+## 🤝 Contributing
+
+Pull requests are welcome. For major changes please open an issue first to discuss what you would like to change.
+
+---
+
+## ⚠️ Disclaimer
+
+Always verify religious matters with qualified scholars. This app is a reference tool, not a substitute for proper Islamic education.
+
+---
+
+## 📜 License
+
+This project is licensed under the [GPL-3.0 License](LICENSE).
+
+---
+
+<p align="center">
+  <i>This app is fully vibe coded. Built entirely on a phone, no PC involved, with the help of AI. Every line of code was written through conversation. Honest disclosure for anyone who uses or views this project.</i>
+</p>
+
