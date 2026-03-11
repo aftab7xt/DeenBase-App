@@ -266,7 +266,7 @@ class MainActivity : ComponentActivity() {
                                 composable(Screen.Quran.route) {
                                     QuranScreen(
                                         onSurahClick = { surahId, surahName ->
-                                            navController.navigate("browse_surah/$surahId/${surahName.replace(" ", "_")}")
+                                            navController.navigate("browse_surah/$surahId/${surahName.replace(" ", "_")}/1")
                                         },
                                         onSavedClick = { navController.navigate("saved_verses") }
                                     )
@@ -279,21 +279,22 @@ class MainActivity : ComponentActivity() {
                                     SavedVersesScreen(
                                         onNavigateBack = { navController.popBackStack() },
                                         onVerseClick = { surahId, verseNumber, surahName ->
-                                            navController.navigate("browse_surah/$surahId/${surahName.replace(" ", "_")}")
+                                            navController.navigate("browse_surah/$surahId/${surahName.replace(" ", "_")}/$verseNumber")
                                         }
                                     )
                                 }
                                 composable(
-                                    route = "browse_surah/{surahId}/{surahName}",
+                                    route = "browse_surah/{surahId}/{surahName}/{startVerse}",
                                     enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
                                     popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
                                 ) { backStackEntry ->
                                     val surahId = backStackEntry.arguments?.getString("surahId")?.toIntOrNull() ?: 1
                                     val surahName = backStackEntry.arguments?.getString("surahName")?.replace("_", " ") ?: ""
+                                    val startVerse = backStackEntry.arguments?.getString("startVerse")?.toIntOrNull() ?: 1
                                     com.deenbase.app.features.quran.ui.ReadingScreen(
                                         surahId = surahId,
                                         surahName = surahName,
-                                        startVerse = 1,
+                                        startVerse = startVerse,
                                         trackGoal = false,
                                         onNavigateBack = { navController.popBackStack() }
                                     )
@@ -605,3 +606,4 @@ fun FloatingBottomBar(
         }
     }
 }
+

@@ -66,7 +66,8 @@ val GoogleSansFlex = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             weight = FontWeight.Normal,
             variationSettings = FontVariation.Settings(
                 FontVariation.weight(400),
-                FontVariation.Setting("opsz", 14f)
+                FontVariation.Setting("opsz", 14f),
+                FontVariation.Setting("ROND", 100f) // Added max roundness
             )
         ),
         Font(
@@ -74,7 +75,8 @@ val GoogleSansFlex = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             weight = FontWeight.Medium,
             variationSettings = FontVariation.Settings(
                 FontVariation.weight(500),
-                FontVariation.Setting("opsz", 14f)
+                FontVariation.Setting("opsz", 14f),
+                FontVariation.Setting("ROND", 100f) // Added max roundness
             )
         ),
         Font(
@@ -82,7 +84,8 @@ val GoogleSansFlex = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             weight = FontWeight.SemiBold,
             variationSettings = FontVariation.Settings(
                 FontVariation.weight(600),
-                FontVariation.Setting("opsz", 16f)
+                FontVariation.Setting("opsz", 16f),
+                FontVariation.Setting("ROND", 100f) // Added max roundness
             )
         ),
         Font(
@@ -90,7 +93,8 @@ val GoogleSansFlex = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             weight = FontWeight.Bold,
             variationSettings = FontVariation.Settings(
                 FontVariation.weight(700),
-                FontVariation.Setting("opsz", 16f)
+                FontVariation.Setting("opsz", 16f),
+                FontVariation.Setting("ROND", 100f) // Added max roundness
             )
         )
     )

@@ -40,7 +40,6 @@ fun DhikrScreen(
 
     var bismillahMorningDone by remember { mutableStateOf(false) }
     var bismillahEveningDone by remember { mutableStateOf(false) }
-    var radituMorningDone by remember { mutableStateOf(false) }
     var radituEveningDone by remember { mutableStateOf(false) }
     var subhanallahDone by remember { mutableStateOf(false) }
 
@@ -48,7 +47,6 @@ fun DhikrScreen(
     LaunchedEffect(Unit) {
         bismillahMorningDone = sm.getDhikrCompletionDate("bismillah", "morning") == today
         bismillahEveningDone = sm.getDhikrCompletionDate("bismillah", "evening") == today
-        radituMorningDone   = sm.getDhikrCompletionDate("raditu", "morning") == today
         radituEveningDone   = sm.getDhikrCompletionDate("raditu", "evening") == today
         subhanallahDone     = sm.subhanallahDate.first() == today && sm.subhanallahCount.first() >= 100
     }
@@ -91,8 +89,7 @@ fun DhikrScreen(
 
                 Column(modifier = Modifier.alpha(morningAlpha).scale(morningScale), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     DhikrSectionLabel("Morning Adhkar")
-                    DhikrCard("Protection from All Harm", "Bismillahil-ladhi la yadurru... x3", bismillahMorningDone, topShape = true,  bottomShape = false) { onDhikrClick("bismillah", "morning") }
-                    DhikrCard("Contentment with Allah",   "Raditu billahi Rabban, wa bil-Islami... x3",  radituMorningDone,   topShape = false, bottomShape = true)  { onDhikrClick("raditu",    "morning") }
+                    DhikrCard("Protection from All Harm", "Bismillahil-ladhi la yadurru... x3", bismillahMorningDone, topShape = true, bottomShape = true) { onDhikrClick("bismillah", "morning") }
                 }
 
                 Column(modifier = Modifier.alpha(eveningAlpha).scale(eveningScale), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -162,3 +159,4 @@ private fun DhikrCard(title: String, subtitle: String, isDone: Boolean, topShape
         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
     )
 }
+

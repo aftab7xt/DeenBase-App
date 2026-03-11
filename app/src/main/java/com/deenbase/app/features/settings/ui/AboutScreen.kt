@@ -11,9 +11,17 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.Image
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Gavel
-import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.graphics.shapes.RoundedPolygon
+import androidx.graphics.shapes.toPath
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Matrix
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.asComposePath
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -31,6 +39,20 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.deenbase.app.BuildConfig
 import com.deenbase.app.R
+import kotlin.math.max
+private class PolygonShape(private val polygon: RoundedPolygon) : Shape {
+    private val matrix = Matrix()
+    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
+        val path = polygon.toPath().asComposePath()
+        matrix.reset()
+        val bounds = polygon.calculateBounds()
+        val maxDim = max(bounds[2] - bounds[0], bounds[3] - bounds[1])
+        matrix.scale(size.width / maxDim, size.height / maxDim)
+        matrix.translate(-bounds[0], -bounds[1])
+        path.transform(matrix)
+        return Outline.Generic(path)
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -38,6 +60,7 @@ fun AboutScreen(
     onNavigateBack: () -> Unit
 ) {
     val uriHandler = LocalUriHandler.current
+    val cookieShape = remember { PolygonShape(MaterialShapes.Cookie7Sided) }
 
     val gradientBrush = Brush.verticalGradient(
         colors = listOf(MaterialTheme.colorScheme.background, Color.Transparent)
@@ -131,12 +154,12 @@ fun AboutScreen(
                         Box(
                             modifier = Modifier
                                 .size(64.dp)
-                                .clip(RoundedCornerShape(16.dp))
+                                .clip(cookieShape)
                                 .background(MaterialTheme.colorScheme.primaryContainer),
                             contentAlignment = Alignment.Center
                         ) {
                             Image(
-                                painter = painterResource(id = R.drawable.ic_launcher_foreground),
+                                painter = painterResource(id = R.drawable.ic_db_logo),
                                 contentDescription = null,
                                 modifier = Modifier.size(48.dp)
                             )
@@ -161,7 +184,7 @@ fun AboutScreen(
                                 onClick = { uriHandler.openUri("https://github.com/aftab7xt/DeenBase-App") }
                             ) {
                                 Icon(
-                                    imageVector = Icons.Filled.Code,
+                                    painter = painterResource(R.drawable.ic_github),
                                     contentDescription = "GitHub",
                                     modifier = Modifier.size(20.dp)
                                 )
@@ -170,7 +193,7 @@ fun AboutScreen(
                                 onClick = { uriHandler.openUri("https://instagram.com/deen_base") }
                             ) {
                                 Icon(
-                                    imageVector = Icons.Filled.PhotoCamera,
+                                    painter = painterResource(R.drawable.ic_instagram),
                                     contentDescription = "Instagram",
                                     modifier = Modifier.size(20.dp)
                                 )
@@ -258,3 +281,4 @@ fun AboutScreen(
         }
     }
 }
+

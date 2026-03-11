@@ -16,7 +16,7 @@ class QuranSettingsViewModel(application: Application) : AndroidViewModel(applic
         viewModelScope, SharingStarted.WhileSubscribed(5000), "english"
     )
     val arabicFontStyle = settingsManager.arabicFontStyle.stateIn(
-        viewModelScope, SharingStarted.WhileSubscribed(5000), "al_majeed_quran"
+        viewModelScope, SharingStarted.WhileSubscribed(5000), "indopak_nastaleeq"
     )
     val arabicFontSize = settingsManager.arabicFontSize.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), 32f

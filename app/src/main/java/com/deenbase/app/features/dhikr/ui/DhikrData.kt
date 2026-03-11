@@ -20,10 +20,11 @@ fun getRadituContent(period: String) = DhikrContent(
     arabicText = "رَضِيتُ بِاللَّهِ رَبًّا وَبِالإِسْلاَمِ دِينًا وَبِمُحَمَّدٍ نَبِيًّا",
     transliteration = "Raditu billahi Rabban, wa bil-Islami dinan, wa bi-Muhammadin Nabiyyan",
     translation = "I am pleased with Allah as my Lord, Islam as my religion, and Muhammad ﷺ as Allah's Prophet and Messenger.",
-    hadithNarrator = "Reference: Ahmed 4/337, An-Nasai (Hisnul Muslim), Abu Dawood Book 4 Hadith 318:",
-    hadithText = "Allah has promised that anyone who says this three times every morning or evening will be pleased on the Day of Resurrection.",
-    hadithSource = "Abu Dawood • At-Tirmidhi 5/465 • Ibn As-Sunni (no. 68)",
+    hadithNarrator = "Narrated Thawban (may Allah be pleased with him):",
+    hadithText = "The Messenger of Allah ﷺ said: 'Whoever says this when he reaches the evening, it is a duty upon Allah to please him.'",
+    hadithSource = "Jami' at-Tirmidhi 3389 (Hasan Gharib)",
     completionEmoji = "✨",
     completionTitle = "Allah is pleased with you",
     completionMessage = "You have declared your contentment with Allah, Islam, and His Prophet ﷺ. May Allah make you among those who are pleased on the Day of Resurrection."
 )
+
