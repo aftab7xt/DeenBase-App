@@ -48,7 +48,7 @@ class ReadingViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope, SharingStarted.WhileSubscribed(5000), 18f
     )
     val arabicFontStyle = settingsManager.arabicFontStyle.stateIn(
-        viewModelScope, SharingStarted.WhileSubscribed(5000), "al_majeed_quran"
+        viewModelScope, SharingStarted.WhileSubscribed(5000), "indopak_nastaleeq"
     )
     val showTranslation = settingsManager.showTranslation.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), true
