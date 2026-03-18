@@ -21,14 +21,15 @@ android {
         applicationId = "com.deenbase.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 7
-        versionName = "1.2.1"
+        versionCode = 8
+        versionName = "1.2.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         // ── Expose secrets to code via BuildConfig ────────────────────────────
-        buildConfigField("String", "TURSO_URL",   "\"${localProps["TURSO_URL"]}\"")
-        buildConfigField("String", "TURSO_TOKEN", "\"${localProps["TURSO_TOKEN"]}\"")
+        buildConfigField("String", "TURSO_URL",      "\"${localProps["TURSO_URL"]}\"")
+        buildConfigField("String", "TURSO_TOKEN",    "\"${localProps["TURSO_TOKEN"]}\"")
+        buildConfigField("String", "GEMINI_API_KEY", "\"${localProps["GEMINI_API_KEY"]}\"")
     }
 
     buildTypes {
@@ -61,8 +62,7 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation("androidx.compose.material3:material3:1.4.0-alpha04")
-    // ---------------------------
-
+    implementation("androidx.graphics:graphics-shapes:1.0.1")
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
     implementation("androidx.compose.material:material-icons-extended")
@@ -159,53 +159,6 @@ dependencies {
     android:shape="rectangle">
     <solid android:color="#FFFFFF" /> 
 </shape>
-
-=== ./app/src/main/res/drawable/ic_dhikr.xml ===
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="24dp"
-    android:height="24dp"
-    android:viewportWidth="24"
-    android:viewportHeight="24">
-    <!-- Main loop of beads -->
-    <path
-        android:fillColor="@android:color/transparent"
-        android:strokeColor="#000000"
-        android:strokeWidth="1.5"
-        android:pathData="M12,3 A8,8 0 1,1 4,11" />
-    <!-- Beads on loop -->
-    <path
-        android:fillColor="#000000"
-        android:pathData="M12,3 m-1.2,0 a1.2,1.2 0 1,0 2.4,0 a1.2,1.2 0 1,0 -2.4,0" />
-    <path
-        android:fillColor="#000000"
-        android:pathData="M17.5,5.5 m-1.2,0 a1.2,1.2 0 1,0 2.4,0 a1.2,1.2 0 1,0 -2.4,0" />
-    <path
-        android:fillColor="#000000"
-        android:pathData="M20,11 m-1.2,0 a1.2,1.2 0 1,0 2.4,0 a1.2,1.2 0 1,0 -2.4,0" />
-    <path
-        android:fillColor="#000000"
-        android:pathData="M17.5,16.5 m-1.2,0 a1.2,1.2 0 1,0 2.4,0 a1.2,1.2 0 1,0 -2.4,0" />
-    <path
-        android:fillColor="#000000"
-        android:pathData="M12,19 m-1.2,0 a1.2,1.2 0 1,0 2.4,0 a1.2,1.2 0 1,0 -2.4,0" />
-    <path
-        android:fillColor="#000000"
-        android:pathData="M6.5,16.5 m-1.2,0 a1.2,1.2 0 1,0 2.4,0 a1.2,1.2 0 1,0 -2.4,0" />
-    <path
-        android:fillColor="#000000"
-        android:pathData="M4,11 m-1.2,0 a1.2,1.2 0 1,0 2.4,0 a1.2,1.2 0 1,0 -2.4,0" />
-    <!-- Tail/handle -->
-    <path
-        android:fillColor="@android:color/transparent"
-        android:strokeColor="#000000"
-        android:strokeWidth="1.5"
-        android:strokeLineCap="round"
-        android:pathData="M4,11 L2,14 L3,17" />
-    <!-- Tassel bead -->
-    <path
-        android:fillColor="#000000"
-        android:pathData="M3,17 m-1.2,0 a1.2,1.2 0 1,0 2.4,0 a1.2,1.2 0 1,0 -2.4,0" />
-</vector>
 
 === ./app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml ===
 <?xml version="1.0" encoding="utf-8"?>
@@ -574,6 +527,7 @@ import com.deenbase.app.features.hadith.viewmodel.HadithViewModel
 import com.deenbase.app.features.onboarding.ui.OnboardingScreen
 import com.deenbase.app.features.home.ui.HomeScreen
 import com.deenbase.app.features.quran.ui.QuranScreen
+import com.deenbase.app.features.quran.ui.QuranSearchScreen
 import com.deenbase.app.features.quran.ui.SavedVersesScreen
 import com.deenbase.app.features.settings.ui.AboutScreen
 import com.deenbase.app.features.settings.ui.AppPreferencesScreen
@@ -740,7 +694,8 @@ class MainActivity : ComponentActivity() {
                         currentRoute != "hadith_detail" &&
                         currentRoute != "hadith_search" &&
                         currentRoute != "saved_verses" &&
-                        currentRoute != "about"
+                        currentRoute != "about" &&
+                        currentRoute != "quran_search"
 
                     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                         Box(modifier = Modifier.fillMaxSize()) {
@@ -775,9 +730,22 @@ class MainActivity : ComponentActivity() {
                                 composable(Screen.Quran.route) {
                                     QuranScreen(
                                         onSurahClick = { surahId, surahName ->
-                                            navController.navigate("browse_surah/$surahId/${surahName.replace(" ", "_")}")
+                                            navController.navigate("browse_surah/$surahId/${surahName.replace(" ", "_")}/1")
                                         },
-                                        onSavedClick = { navController.navigate("saved_verses") }
+                                        onSavedClick = { navController.navigate("saved_verses") },
+                                        onSearchClick = { navController.navigate("quran_search") }
+                                    )
+                                }
+                                composable(
+                                    route = "quran_search",
+                                    enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
+                                    popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
+                                ) {
+                                    QuranSearchScreen(
+                                        onBack = { navController.popBackStack() },
+                                        onVerseClick = { surahId, surahName, verseNumber ->
+                                            navController.navigate("browse_surah/$surahId/${surahName.replace(" ", "_")}/$verseNumber")
+                                        }
                                     )
                                 }
                                 composable(
@@ -788,21 +756,22 @@ class MainActivity : ComponentActivity() {
                                     SavedVersesScreen(
                                         onNavigateBack = { navController.popBackStack() },
                                         onVerseClick = { surahId, verseNumber, surahName ->
-                                            navController.navigate("browse_surah/$surahId/${surahName.replace(" ", "_")}")
+                                            navController.navigate("browse_surah/$surahId/${surahName.replace(" ", "_")}/$verseNumber")
                                         }
                                     )
                                 }
                                 composable(
-                                    route = "browse_surah/{surahId}/{surahName}",
+                                    route = "browse_surah/{surahId}/{surahName}/{startVerse}",
                                     enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
                                     popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
                                 ) { backStackEntry ->
                                     val surahId = backStackEntry.arguments?.getString("surahId")?.toIntOrNull() ?: 1
                                     val surahName = backStackEntry.arguments?.getString("surahName")?.replace("_", " ") ?: ""
+                                    val startVerse = backStackEntry.arguments?.getString("startVerse")?.toIntOrNull() ?: 1
                                     com.deenbase.app.features.quran.ui.ReadingScreen(
                                         surahId = surahId,
                                         surahName = surahName,
-                                        startVerse = 1,
+                                        startVerse = startVerse,
                                         trackGoal = false,
                                         onNavigateBack = { navController.popBackStack() }
                                     )
@@ -1029,7 +998,8 @@ fun FloatingBottomBar(
         val isReadingSurah = screen.route == Screen.Quran.route &&
             (currentDestination?.route?.startsWith("browse_surah") == true ||
              currentDestination?.route?.startsWith("goal_surah")   == true ||
-             currentDestination?.route == "saved_verses")
+             currentDestination?.route == "saved_verses" ||
+             currentDestination?.route == "quran_search")
         isExactMatch || isReadingSurah
     }.coerceAtLeast(0)
 
@@ -1114,6 +1084,7 @@ fun FloatingBottomBar(
         }
     }
 }
+
 
 === ./app/src/main/java/com/deenbase/app/features/tasbih/ui/SubhanallahScreen.kt ===
 package com.deenbase.app.features.tasbih.ui
@@ -1646,6 +1617,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BookmarkBorder
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.material3.MaterialTheme.motionScheme
 import androidx.compose.runtime.*
@@ -1673,7 +1645,8 @@ import com.deenbase.app.features.quran.viewmodel.QuranViewModel
 fun QuranScreen(
     viewModel: QuranViewModel = viewModel(),
     onSurahClick: (Int, String) -> Unit,
-    onSavedClick: () -> Unit = {}
+    onSavedClick: () -> Unit = {},
+    onSearchClick: () -> Unit = {}
 ) {
     val surahs by viewModel.surahs.collectAsState()
     val surahNamesFont = remember { FontFamily(Font(R.font.surah_names)) }
@@ -1713,6 +1686,13 @@ fun QuranScreen(
                     scrolledContainerColor = Color.Transparent
                 ),
                 actions = {
+                    IconButton(onClick = onSearchClick) {
+                        Icon(
+                            imageVector = Icons.Filled.Search,
+                            contentDescription = "Search",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
                     IconButton(onClick = onSavedClick) {
                         Icon(
                             imageVector = Icons.Filled.BookmarkBorder,
@@ -1863,6 +1843,8 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -2298,15 +2280,17 @@ fun ShareImageBottomSheet(
                             .fillMaxWidth()
                             .padding(horizontal = 20.dp, vertical = 24.dp)
                     ) {
-                        Text(
-                            text = verse.arabicText,
-                            fontFamily = arabicFontFamily,
-                            fontSize = 24.sp,
-                            textAlign = TextAlign.Center,
-                            lineHeight = 48.sp,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+                            Text(
+                                text = verse.arabicText,
+                                fontFamily = arabicFontFamily,
+                                fontSize = 24.sp,
+                                textAlign = TextAlign.Right,
+                                lineHeight = 48.sp,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
                         
                         Spacer(modifier = Modifier.height(20.dp))
                         
@@ -2314,7 +2298,7 @@ fun ShareImageBottomSheet(
                             text = verse.translationText,
                             fontSize = 16.sp,
                             lineHeight = 24.sp,
-                            textAlign = if (urduFontFamily != null) TextAlign.Right else TextAlign.Center,
+                            textAlign = if (urduFontFamily != null) TextAlign.Right else TextAlign.Justify,
                             fontFamily = urduFontFamily,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.fillMaxWidth()
@@ -2567,6 +2551,7 @@ fun ReaderBottomNavigation(
     }
 }
 
+
 === ./app/src/main/java/com/deenbase/app/features/quran/ui/SavedVersesScreen.kt ===
 package com.deenbase.app.features.quran.ui
 
@@ -2792,6 +2777,270 @@ private fun SavedVerseItem(
     )
 }
 
+=== ./app/src/main/java/com/deenbase/app/features/quran/ui/QuranSearchScreen.kt ===
+package com.deenbase.app.features.quran.ui
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.deenbase.app.R
+import com.deenbase.app.features.quran.data.Verse
+import com.deenbase.app.features.quran.viewmodel.QuranSearchViewModel
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun QuranSearchScreen(
+    onBack: () -> Unit,
+    onVerseClick: (surahId: Int, surahName: String, verseNumber: Int) -> Unit,
+    viewModel: QuranSearchViewModel = viewModel()
+) {
+    val query by viewModel.query.collectAsState()
+    val results by viewModel.results.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val hasSearched by viewModel.hasSearched.collectAsState()
+    val error by viewModel.error.collectAsState()
+    val arabicFontStyle by viewModel.arabicFontStyle.collectAsState()
+    val arabicFontSize by viewModel.arabicFontSize.collectAsState()
+
+    val arabicFontFamily = remember(arabicFontStyle) {
+        val fontRes = when (arabicFontStyle) {
+            "indopak_nastaleeq" -> R.font.indopak_nastaleeq
+            else -> R.font.hafs_uthmanic_regular
+        }
+        FontFamily(Font(fontRes))
+    }
+
+    val focusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) { focusRequester.requestFocus() }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    TextField(
+                        value = query,
+                        onValueChange = { viewModel.onQueryChange(it) },
+                        placeholder = {
+                            Text(
+                                "Ask anything — patience, forgiveness...",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = androidx.compose.ui.graphics.Color.Transparent,
+                            unfocusedContainerColor = androidx.compose.ui.graphics.Color.Transparent,
+                            focusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
+                            unfocusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
+                            disabledIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusRequester(focusRequester),
+                        trailingIcon = {
+                            if (query.isNotEmpty()) {
+                                IconButton(onClick = { viewModel.onQueryChange("") }) {
+                                    Icon(Icons.Filled.Close, contentDescription = "Clear")
+                                }
+                            }
+                        }
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
+            )
+        },
+        containerColor = MaterialTheme.colorScheme.background
+    ) { innerPadding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
+            when {
+                isLoading -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            CircularWavyProgressIndicator()
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                "Searching...",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+                error != null -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text(
+                            error!!,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(32.dp)
+                        )
+                    }
+                }
+                !hasSearched -> {
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.Center,
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Search,
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            "Search by topic, theme, or keyword",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            "Powered by Gemini AI",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
+                        )
+                    }
+                }
+                results.isEmpty() -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text(
+                            "No results found",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                else -> {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp),
+                        contentPadding = PaddingValues(vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(results) { verse ->
+                            SearchResultItem(
+                                verse = verse,
+                                arabicFontFamily = arabicFontFamily,
+                                arabicFontSize = arabicFontSize,
+                                onClick = {
+                                    onVerseClick(verse.surahId, verse.surahName, verse.verseNumber)
+                                }
+                            )
+                        }
+                        item { Spacer(modifier = Modifier.height(80.dp)) }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SearchResultItem(
+    verse: Verse,
+    arabicFontFamily: FontFamily,
+    arabicFontSize: Float,
+    onClick: () -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(
+                interactionSource = interactionSource,
+                indication = ripple(),
+                onClick = onClick
+            ),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = verse.surahName,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = "${verse.surahId}:${verse.verseNumber}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Text(
+                text = verse.arabicText,
+                fontFamily = arabicFontFamily,
+                fontSize = (arabicFontSize * 0.75f).sp,
+                fontWeight = FontWeight.Normal,
+                textAlign = TextAlign.Right,
+                lineHeight = (arabicFontSize * 1.5f).sp,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = verse.translationText,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
 === ./app/src/main/java/com/deenbase/app/features/quran/data/QuranRepository.kt ===
 package com.deenbase.app.features.quran.data
 
@@ -2979,6 +3228,45 @@ class QuranRepository {
                 surahNameArabic = row["name_arabic"] ?: ""
             )
         }
+    }
+
+    // ── Fetch specific verses by surah:verse references ───────────────────────
+
+    fun fetchVersesByReferences(refs: List<Pair<Int, Int>>, lang: String): List<Verse> {
+        if (refs.isEmpty()) return emptyList()
+        val conditions = refs.joinToString(" OR ") { "(v.surah_number=? AND v.verse_number=?)" }
+        val args: List<Any?> = refs.flatMap { listOf(it.first, it.second) }
+        val rows = query(
+            """
+            SELECT v.id, v.surah_number, v.verse_number, v.arabic_text,
+                   v.english_text, v.urdu_text, v.juz,
+                   s.name_transliteration, s.name_arabic
+            FROM verses v
+            JOIN surahs s ON v.surah_number = s.surah_number
+            WHERE $conditions
+            """.trimIndent(),
+            args
+        )
+        val map = rows.associate { row ->
+            val s = row["surah_number"]?.toIntOrNull() ?: 0
+            val v = row["verse_number"]?.toIntOrNull() ?: 0
+            val translationText = if (lang == "urdu") {
+                row["urdu_text"] ?: row["english_text"] ?: ""
+            } else {
+                row["english_text"] ?: ""
+            }
+            Pair(s, v) to Verse(
+                id              = row["id"]?.toIntOrNull() ?: 0,
+                surahId         = s,
+                verseNumber     = v,
+                arabicText      = row["arabic_text"] ?: "",
+                translationText = translationText,
+                juz             = row["juz"]?.toIntOrNull() ?: 0,
+                surahName       = row["name_transliteration"] ?: "",
+                surahNameArabic = row["name_arabic"] ?: ""
+            )
+        }
+        return refs.mapNotNull { map[it] }
     }
 }
 
@@ -3236,6 +3524,154 @@ class SavedVersesViewModel(application: Application) : AndroidViewModel(applicat
 
     fun removeBookmark(surahId: Int, verseNumber: Int) {
         viewModelScope.launch { settingsManager.toggleBookmarkVerse(surahId, verseNumber) }
+    }
+}
+
+=== ./app/src/main/java/com/deenbase/app/features/quran/viewmodel/QuranSearchViewModel.kt ===
+package com.deenbase.app.features.quran.viewmodel
+
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import com.deenbase.app.BuildConfig
+import com.deenbase.app.data.SettingsManager
+import com.deenbase.app.features.quran.data.QuranRepository
+import com.deenbase.app.features.quran.data.Verse
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONArray
+import org.json.JSONObject
+import java.util.concurrent.TimeUnit
+
+class QuranSearchViewModel(application: Application) : AndroidViewModel(application) {
+
+    private val repository = QuranRepository()
+    private val settingsManager = SettingsManager(application)
+
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
+        .build()
+
+    val arabicFontStyle = settingsManager.arabicFontStyle.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), "indopak_nastaleeq"
+    )
+    val arabicFontSize = settingsManager.arabicFontSize.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), 32f
+    )
+
+    private val _query = MutableStateFlow("")
+    val query: StateFlow<String> = _query.asStateFlow()
+
+    private val _results = MutableStateFlow<List<Verse>>(emptyList())
+    val results: StateFlow<List<Verse>> = _results.asStateFlow()
+
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    private val _hasSearched = MutableStateFlow(false)
+    val hasSearched: StateFlow<Boolean> = _hasSearched.asStateFlow()
+
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error.asStateFlow()
+
+    private var searchJob: Job? = null
+
+    fun onQueryChange(newQuery: String) {
+        _query.value = newQuery
+        searchJob?.cancel()
+        if (newQuery.isBlank()) {
+            _results.value = emptyList()
+            _hasSearched.value = false
+            _isLoading.value = false
+            _error.value = null
+            return
+        }
+        searchJob = viewModelScope.launch {
+            delay(600)
+            _isLoading.value = true
+            _hasSearched.value = true
+            _error.value = null
+            try {
+                val lang = settingsManager.translationLang.first()
+                val refs = withContext(Dispatchers.IO) { askGeminiForRefs(newQuery.trim()) }
+                val verses = withContext(Dispatchers.IO) { repository.fetchVersesByReferences(refs, lang) }
+                _results.value = verses
+            } catch (e: Exception) {
+                _error.value = e.javaClass.simpleName + ": " + (e.message ?: "unknown")
+                _results.value = emptyList()
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    private fun askGeminiForRefs(query: String): List<Pair<Int, Int>> {
+        val prompt = """
+            You are a Quran reference assistant. Given a search query, return the most relevant Quran verse references.
+            
+            Rules:
+            - Return ONLY a valid JSON array, nothing else
+            - No markdown, no backticks, no explanation
+            - Format exactly: [{"surah":2,"verse":255},{"surah":3,"verse":18}]
+            - Return 5 to 10 of the most relevant verses
+            - If query mentions a specific surah or verse number, include it
+            
+            Query: $query
+        """.trimIndent()
+
+        val requestBody = JSONObject()
+            .put("contents", JSONArray()
+                .put(JSONObject()
+                    .put("parts", JSONArray()
+                        .put(JSONObject().put("text", prompt))
+                    )
+                )
+            )
+
+        val request = Request.Builder()
+            .url("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${BuildConfig.GEMINI_API_KEY}")
+            .addHeader("Content-Type", "application/json")
+            .post(requestBody.toString().toRequestBody("application/json".toMediaType()))
+            .build()
+
+        val response = client.newCall(request).execute()
+        val body = response.body?.string() ?: error("Empty Gemini response")
+        if (!response.isSuccessful) error("Gemini HTTP ${response.code}")
+
+        val text = JSONObject(body)
+            .getJSONArray("candidates")
+            .getJSONObject(0)
+            .getJSONObject("content")
+            .getJSONArray("parts")
+            .getJSONObject(0)
+            .getString("text")
+            .trim()
+            .removePrefix("```json")
+            .removePrefix("```")
+            .removeSuffix("```")
+            .trim()
+
+        val jsonArray = JSONArray(text)
+        return (0 until jsonArray.length()).mapNotNull { i ->
+            val obj = jsonArray.getJSONObject(i)
+            val surah = obj.optInt("surah", 0)
+            val verse = obj.optInt("verse", 0)
+            if (surah in 1..114 && verse > 0) Pair(surah, verse) else null
+        }
     }
 }
 
@@ -6257,9 +6693,17 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.Image
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Gavel
-import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.graphics.shapes.RoundedPolygon
+import androidx.graphics.shapes.toPath
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Matrix
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.asComposePath
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -6277,6 +6721,20 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.deenbase.app.BuildConfig
 import com.deenbase.app.R
+import kotlin.math.max
+private class PolygonShape(private val polygon: RoundedPolygon) : Shape {
+    private val matrix = Matrix()
+    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
+        val path = polygon.toPath().asComposePath()
+        matrix.reset()
+        val bounds = polygon.calculateBounds()
+        val maxDim = max(bounds[2] - bounds[0], bounds[3] - bounds[1])
+        matrix.scale(size.width / maxDim, size.height / maxDim)
+        matrix.translate(-bounds[0], -bounds[1])
+        path.transform(matrix)
+        return Outline.Generic(path)
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -6284,6 +6742,7 @@ fun AboutScreen(
     onNavigateBack: () -> Unit
 ) {
     val uriHandler = LocalUriHandler.current
+    val cookieShape = remember { PolygonShape(MaterialShapes.Cookie7Sided) }
 
     val gradientBrush = Brush.verticalGradient(
         colors = listOf(MaterialTheme.colorScheme.background, Color.Transparent)
@@ -6377,12 +6836,12 @@ fun AboutScreen(
                         Box(
                             modifier = Modifier
                                 .size(64.dp)
-                                .clip(RoundedCornerShape(16.dp))
+                                .clip(cookieShape)
                                 .background(MaterialTheme.colorScheme.primaryContainer),
                             contentAlignment = Alignment.Center
                         ) {
                             Image(
-                                painter = painterResource(id = R.drawable.ic_launcher_foreground),
+                                painter = painterResource(id = R.drawable.ic_db_logo),
                                 contentDescription = null,
                                 modifier = Modifier.size(48.dp)
                             )
@@ -6407,7 +6866,7 @@ fun AboutScreen(
                                 onClick = { uriHandler.openUri("https://github.com/aftab7xt/DeenBase-App") }
                             ) {
                                 Icon(
-                                    imageVector = Icons.Filled.Code,
+                                    painter = painterResource(R.drawable.ic_github),
                                     contentDescription = "GitHub",
                                     modifier = Modifier.size(20.dp)
                                 )
@@ -6416,7 +6875,7 @@ fun AboutScreen(
                                 onClick = { uriHandler.openUri("https://instagram.com/deen_base") }
                             ) {
                                 Icon(
-                                    imageVector = Icons.Filled.PhotoCamera,
+                                    painter = painterResource(R.drawable.ic_instagram),
                                     contentDescription = "Instagram",
                                     modifier = Modifier.size(20.dp)
                                 )
@@ -6504,6 +6963,7 @@ fun AboutScreen(
         }
     }
 }
+
 
 === ./app/src/main/java/com/deenbase/app/features/settings/viewmodel/SettingsViewModel.kt ===
 package com.deenbase.app.features.settings.viewmodel
@@ -7310,7 +7770,6 @@ fun DhikrScreen(
 
     var bismillahMorningDone by remember { mutableStateOf(false) }
     var bismillahEveningDone by remember { mutableStateOf(false) }
-    var radituMorningDone by remember { mutableStateOf(false) }
     var radituEveningDone by remember { mutableStateOf(false) }
     var subhanallahDone by remember { mutableStateOf(false) }
 
@@ -7318,7 +7777,6 @@ fun DhikrScreen(
     LaunchedEffect(Unit) {
         bismillahMorningDone = sm.getDhikrCompletionDate("bismillah", "morning") == today
         bismillahEveningDone = sm.getDhikrCompletionDate("bismillah", "evening") == today
-        radituMorningDone   = sm.getDhikrCompletionDate("raditu", "morning") == today
         radituEveningDone   = sm.getDhikrCompletionDate("raditu", "evening") == today
         subhanallahDone     = sm.subhanallahDate.first() == today && sm.subhanallahCount.first() >= 100
     }
@@ -7361,8 +7819,7 @@ fun DhikrScreen(
 
                 Column(modifier = Modifier.alpha(morningAlpha).scale(morningScale), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     DhikrSectionLabel("Morning Adhkar")
-                    DhikrCard("Protection from All Harm", "Bismillahil-ladhi la yadurru... x3", bismillahMorningDone, topShape = true,  bottomShape = false) { onDhikrClick("bismillah", "morning") }
-                    DhikrCard("Contentment with Allah",   "Raditu billahi Rabban, wa bil-Islami... x3",  radituMorningDone,   topShape = false, bottomShape = true)  { onDhikrClick("raditu",    "morning") }
+                    DhikrCard("Protection from All Harm", "Bismillahil-ladhi la yadurru... x3", bismillahMorningDone, topShape = true, bottomShape = true) { onDhikrClick("bismillah", "morning") }
                 }
 
                 Column(modifier = Modifier.alpha(eveningAlpha).scale(eveningScale), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -7432,6 +7889,7 @@ private fun DhikrCard(title: String, subtitle: String, isDone: Boolean, topShape
         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
     )
 }
+
 
 === ./app/src/main/java/com/deenbase/app/features/dhikr/ui/DhikrDetailScreen.kt ===
 package com.deenbase.app.features.dhikr.ui
@@ -7759,13 +8217,14 @@ fun getRadituContent(period: String) = DhikrContent(
     arabicText = "رَضِيتُ بِاللَّهِ رَبًّا وَبِالإِسْلاَمِ دِينًا وَبِمُحَمَّدٍ نَبِيًّا",
     transliteration = "Raditu billahi Rabban, wa bil-Islami dinan, wa bi-Muhammadin Nabiyyan",
     translation = "I am pleased with Allah as my Lord, Islam as my religion, and Muhammad ﷺ as Allah's Prophet and Messenger.",
-    hadithNarrator = "Reference: Ahmed 4/337, An-Nasai (Hisnul Muslim), Abu Dawood Book 4 Hadith 318:",
-    hadithText = "Allah has promised that anyone who says this three times every morning or evening will be pleased on the Day of Resurrection.",
-    hadithSource = "Abu Dawood • At-Tirmidhi 5/465 • Ibn As-Sunni (no. 68)",
+    hadithNarrator = "Narrated Thawban (may Allah be pleased with him):",
+    hadithText = "The Messenger of Allah ﷺ said: 'Whoever says this when he reaches the evening, it is a duty upon Allah to please him.'",
+    hadithSource = "Jami' at-Tirmidhi 3389 (Hasan Gharib)",
     completionEmoji = "✨",
     completionTitle = "Allah is pleased with you",
     completionMessage = "You have declared your contentment with Allah, Islam, and His Prophet ﷺ. May Allah make you among those who are pleased on the Day of Resurrection."
 )
+
 
 === ./app/src/main/java/com/deenbase/app/features/dhikr/viewmodel/DhikrViewModel.kt ===
 package com.deenbase.app.features.dhikr.viewmodel
@@ -9136,7 +9595,7 @@ android.nonTransitiveRClass=true
 === ./local.properties ===
 TURSO_TOKEN=eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3NzI2NDEyNzYsImlkIjoiMDE5Y2I5YTQtNWYwMS03NzkwLThiOTAtZGY2Mzg1ZDlmZTZkIiwicmlkIjoiMTQyNDQ1YmUtMWQ5Ny00ZWQ4LWJlNjMtNzBlYjgwOTk2MTY4In0.7y_z-_vEdIfE09DdfTlVSMC__4LFCwhl2KADvT6h8hJLDrkyMbtW-c1t708BVKB4sVQInn6nwsD0CcUqjDOEAw
 TURSO_URL=https://deen-base-aftab.aws-ap-south-1.turso.io/v2/pipeline
-
+GEMINI_API_KEY=AIzaSyDB8FuP-vWyXcie1yoQ0vECp3SnOE4shWg
 === ./README.md ===
 # DeenBase
 

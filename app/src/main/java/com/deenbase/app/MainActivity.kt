@@ -65,6 +65,7 @@ import com.deenbase.app.features.hadith.viewmodel.HadithViewModel
 import com.deenbase.app.features.onboarding.ui.OnboardingScreen
 import com.deenbase.app.features.home.ui.HomeScreen
 import com.deenbase.app.features.quran.ui.QuranScreen
+import com.deenbase.app.features.quran.ui.QuranSearchScreen
 import com.deenbase.app.features.quran.ui.SavedVersesScreen
 import com.deenbase.app.features.settings.ui.AboutScreen
 import com.deenbase.app.features.settings.ui.AppPreferencesScreen
@@ -231,7 +232,8 @@ class MainActivity : ComponentActivity() {
                         currentRoute != "hadith_detail" &&
                         currentRoute != "hadith_search" &&
                         currentRoute != "saved_verses" &&
-                        currentRoute != "about"
+                        currentRoute != "about" &&
+                        currentRoute != "quran_search"
 
                     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                         Box(modifier = Modifier.fillMaxSize()) {
@@ -268,7 +270,20 @@ class MainActivity : ComponentActivity() {
                                         onSurahClick = { surahId, surahName ->
                                             navController.navigate("browse_surah/$surahId/${surahName.replace(" ", "_")}/1")
                                         },
-                                        onSavedClick = { navController.navigate("saved_verses") }
+                                        onSavedClick = { navController.navigate("saved_verses") },
+                                        onSearchClick = { navController.navigate("quran_search") }
+                                    )
+                                }
+                                composable(
+                                    route = "quran_search",
+                                    enterTransition = { slideInHorizontally { it } + fadeIn(tween(300)) },
+                                    popExitTransition = { slideOutHorizontally { it } + fadeOut(tween(300)) }
+                                ) {
+                                    QuranSearchScreen(
+                                        onBack = { navController.popBackStack() },
+                                        onVerseClick = { surahId, surahName, verseNumber ->
+                                            navController.navigate("browse_surah/$surahId/${surahName.replace(" ", "_")}/$verseNumber")
+                                        }
                                     )
                                 }
                                 composable(
@@ -521,7 +536,8 @@ fun FloatingBottomBar(
         val isReadingSurah = screen.route == Screen.Quran.route &&
             (currentDestination?.route?.startsWith("browse_surah") == true ||
              currentDestination?.route?.startsWith("goal_surah")   == true ||
-             currentDestination?.route == "saved_verses")
+             currentDestination?.route == "saved_verses" ||
+             currentDestination?.route == "quran_search")
         isExactMatch || isReadingSurah
     }.coerceAtLeast(0)
 

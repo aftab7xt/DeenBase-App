@@ -185,4 +185,43 @@ class QuranRepository {
             )
         }
     }
+
+    // ── Fetch specific verses by surah:verse references ───────────────────────
+
+    fun fetchVersesByReferences(refs: List<Pair<Int, Int>>, lang: String): List<Verse> {
+        if (refs.isEmpty()) return emptyList()
+        val conditions = refs.joinToString(" OR ") { "(v.surah_number=? AND v.verse_number=?)" }
+        val args: List<Any?> = refs.flatMap { listOf(it.first, it.second) }
+        val rows = query(
+            """
+            SELECT v.id, v.surah_number, v.verse_number, v.arabic_text,
+                   v.english_text, v.urdu_text, v.juz,
+                   s.name_transliteration, s.name_arabic
+            FROM verses v
+            JOIN surahs s ON v.surah_number = s.surah_number
+            WHERE $conditions
+            """.trimIndent(),
+            args
+        )
+        val map = rows.associate { row ->
+            val s = row["surah_number"]?.toIntOrNull() ?: 0
+            val v = row["verse_number"]?.toIntOrNull() ?: 0
+            val translationText = if (lang == "urdu") {
+                row["urdu_text"] ?: row["english_text"] ?: ""
+            } else {
+                row["english_text"] ?: ""
+            }
+            Pair(s, v) to Verse(
+                id              = row["id"]?.toIntOrNull() ?: 0,
+                surahId         = s,
+                verseNumber     = v,
+                arabicText      = row["arabic_text"] ?: "",
+                translationText = translationText,
+                juz             = row["juz"]?.toIntOrNull() ?: 0,
+                surahName       = row["name_transliteration"] ?: "",
+                surahNameArabic = row["name_arabic"] ?: ""
+            )
+        }
+        return refs.mapNotNull { map[it] }
+    }
 }
