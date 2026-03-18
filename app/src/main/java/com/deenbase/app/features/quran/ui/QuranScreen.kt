@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BookmarkBorder
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.material3.MaterialTheme.motionScheme
 import androidx.compose.runtime.*
@@ -38,7 +39,8 @@ import com.deenbase.app.features.quran.viewmodel.QuranViewModel
 fun QuranScreen(
     viewModel: QuranViewModel = viewModel(),
     onSurahClick: (Int, String) -> Unit,
-    onSavedClick: () -> Unit = {}
+    onSavedClick: () -> Unit = {},
+    onSearchClick: () -> Unit = {}
 ) {
     val surahs by viewModel.surahs.collectAsState()
     val surahNamesFont = remember { FontFamily(Font(R.font.surah_names)) }
@@ -77,11 +79,20 @@ fun QuranScreen(
                     containerColor = Color.Transparent,
                     scrolledContainerColor = Color.Transparent
                 ),
-                actions = {
+                navigationIcon = {
                     IconButton(onClick = onSavedClick) {
                         Icon(
                             imageVector = Icons.Filled.BookmarkBorder,
                             contentDescription = "Saved Verses",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                },
+                actions = {
+                    IconButton(onClick = onSearchClick) {
+                        Icon(
+                            imageVector = Icons.Filled.Search,
+                            contentDescription = "Search",
                             tint = MaterialTheme.colorScheme.onSurface
                         )
                     }

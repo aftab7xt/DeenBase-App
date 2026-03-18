@@ -43,9 +43,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
-import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.viewinterop.AndroidView
-import androidx.core.content.res.ResourcesCompat
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -104,15 +101,7 @@ fun ReadingScreen(
         }
         FontFamily(Font(fontRes))
     }
-    val arabicTypeface = remember(arabicFontStyle) {
-        val fontRes = when (arabicFontStyle) {
-            "indopak_nastaleeq" -> R.font.indopak_nastaleeq
-            else -> R.font.hafs_uthmanic_regular
-        }
-        ResourcesCompat.getFont(context, fontRes)
-    }
     val arabicTextColor = MaterialTheme.colorScheme.onSurface
-    val arabicTextColorArgb = arabicTextColor.toArgb()
 
     // State for the Image Share Dialog
     var verseToShare by remember { mutableStateOf<Verse?>(null) }
@@ -346,30 +335,17 @@ fun ReadingScreen(
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
                             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                         ) {
-                            AndroidView(
-                                factory = { ctx ->
-                                    android.widget.TextView(ctx).apply {
-                                        textDirection = android.view.View.TEXT_DIRECTION_RTL
-                                        textAlignment = android.view.View.TEXT_ALIGNMENT_TEXT_START
-                                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                                            justificationMode = android.graphics.text.LineBreaker.JUSTIFICATION_MODE_INTER_WORD
-                                        }
-                                        setPadding(
-                                            (20 * ctx.resources.displayMetrics.density).toInt(),
-                                            (24 * ctx.resources.displayMetrics.density).toInt(),
-                                            (20 * ctx.resources.displayMetrics.density).toInt(),
-                                            (24 * ctx.resources.displayMetrics.density).toInt()
-                                        )
-                                    }
-                                },
-                                update = { tv ->
-                                    tv.text = verse.arabicText
-                                    tv.textSize = arabicFontSize
-                                    tv.typeface = arabicTypeface
-                                    tv.setTextColor(arabicTextColorArgb)
-                                    tv.setLineSpacing(0f, 1.4f)
-                                },
-                                modifier = Modifier.fillMaxWidth()
+                            Text(
+                                text = verse.arabicText,
+                                fontFamily = arabicFontFamily,
+                                fontSize = arabicFontSize.sp,
+                                fontWeight = FontWeight.Normal,
+                                textAlign = TextAlign.Right,
+                                lineHeight = (arabicFontSize * 2.0f).sp,
+                                color = arabicTextColor,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 20.dp, vertical = 24.dp)
                             )
                         }
 
