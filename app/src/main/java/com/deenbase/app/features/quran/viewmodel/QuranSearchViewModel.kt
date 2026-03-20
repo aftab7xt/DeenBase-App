@@ -42,6 +42,11 @@ class QuranSearchViewModel(application: Application) : AndroidViewModel(applicat
         viewModelScope, SharingStarted.WhileSubscribed(5000), 32f
     )
 
+    // Search history from DataStore
+    val searchHistory = settingsManager.quranSearchHistory.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
+    )
+
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
 
@@ -83,6 +88,10 @@ class QuranSearchViewModel(application: Application) : AndroidViewModel(applicat
                 val refs = withContext(Dispatchers.IO) { askGeminiForRefs(q) }
                 val verses = withContext(Dispatchers.IO) { repository.fetchVersesByReferences(refs, lang) }
                 _results.value = verses
+                // Save to history only on successful search with results
+                if (verses.isNotEmpty()) {
+                    settingsManager.addSearchHistoryItem(q)
+                }
             } catch (e: Exception) {
                 _error.value = e.javaClass.simpleName + ": " + (e.message ?: "unknown")
                 _results.value = emptyList()
@@ -90,6 +99,20 @@ class QuranSearchViewModel(application: Application) : AndroidViewModel(applicat
                 _isLoading.value = false
             }
         }
+    }
+
+    // Called when user taps a history item — fills query and triggers search immediately
+    fun searchFromHistory(query: String) {
+        _query.value = query
+        search()
+    }
+
+    fun removeHistoryItem(query: String) {
+        viewModelScope.launch { settingsManager.removeSearchHistoryItem(query) }
+    }
+
+    fun clearHistory() {
+        viewModelScope.launch { settingsManager.clearSearchHistory() }
     }
 
     private fun askGeminiForRefs(query: String): List<Pair<Int, Int>> {

@@ -1,11 +1,14 @@
 package com.deenbase.app.features.quran.ui
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -18,7 +21,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import com.deenbase.app.ui.springOverscroll
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -28,8 +30,11 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.deenbase.app.features.quran.data.Verse
 import com.deenbase.app.features.quran.viewmodel.SavedVersesViewModel
+import com.deenbase.app.ui.springOverscroll
+import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class,
+    ExperimentalFoundationApi::class)
 @Composable
 fun SavedVersesScreen(
     onNavigateBack: () -> Unit,
@@ -37,10 +42,15 @@ fun SavedVersesScreen(
     viewModel: SavedVersesViewModel = viewModel()
 ) {
     val favourites by viewModel.favourites.collectAsState()
-    val bookmarks by viewModel.bookmarks.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
+    val bookmarks  by viewModel.bookmarks.collectAsState()
+    val isLoading  by viewModel.isLoading.collectAsState()
 
-    var selectedTab by remember { mutableIntStateOf(0) }
+    val pagerState = rememberPagerState(pageCount = { 2 })
+    val scope      = rememberCoroutineScope()
+
+    // Keep tab indicator and pager in sync
+    val selectedTab = pagerState.currentPage
+    LaunchedEffect(pagerState.currentPage) { /* currentPage drives selectedTab directly */ }
 
     val gradientBrush = Brush.verticalGradient(
         colors = listOf(MaterialTheme.colorScheme.background, Color.Transparent)
@@ -70,13 +80,12 @@ fun SavedVersesScreen(
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
-        Box(modifier = Modifier.fillMaxSize().springOverscroll()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(top = innerPadding.calculateTopPadding())
         ) {
-            // ── Tabs ──────────────────────────────────────────────────────────
+            // ── Tabs — intentionally outside any scrollable/overscrollable area ──
             TabRow(
                 selectedTabIndex = selectedTab,
                 containerColor = Color.Transparent,
@@ -84,7 +93,7 @@ fun SavedVersesScreen(
             ) {
                 Tab(
                     selected = selectedTab == 0,
-                    onClick = { selectedTab = 0 },
+                    onClick = { scope.launch { pagerState.animateScrollToPage(0) } },
                     text = {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -97,7 +106,7 @@ fun SavedVersesScreen(
                 )
                 Tab(
                     selected = selectedTab == 1,
-                    onClick = { selectedTab = 1 },
+                    onClick = { scope.launch { pagerState.animateScrollToPage(1) } },
                     text = {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -110,58 +119,64 @@ fun SavedVersesScreen(
                 )
             }
 
-            // ── Content ───────────────────────────────────────────────────────
+            // ── Pager — swipe switches tabs, spring overscroll per-page ─────────
             if (isLoading) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularWavyProgressIndicator()
                 }
             } else {
-                val currentList = if (selectedTab == 0) favourites else bookmarks
-                val emptyLabel = if (selectedTab == 0)
-                    "No favourites yet.\nTap ♡ while reading a verse."
-                else
-                    "No bookmarks yet.\nTap 🔖 while reading a verse."
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier.fillMaxSize()
+                ) { page ->
+                    val list = if (page == 0) favourites else bookmarks
+                    val emptyLabel = if (page == 0)
+                        "No favourites yet.\nTap ♡ while reading a verse."
+                    else
+                        "No bookmarks yet.\nTap 🔖 while reading a verse."
 
-                if (currentList.isEmpty()) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text(
-                            text = emptyLabel,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(horizontal = 48.dp)
-                        )
-                    }
-                } else {
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 16.dp),
-                        contentPadding = PaddingValues(top = 12.dp, bottom = 100.dp),
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
-                    ) {
-                        itemsIndexed(
-                            items = currentList,
-                            key = { _, verse -> "${verse.surahId}:${verse.verseNumber}" }
-                        ) { index, verse ->
-                            SavedVerseItem(
-                                verse = verse,
-                                isFirst = index == 0,
-                                isLast = index == currentList.size - 1,
-                                onClick = {
-                                    onVerseClick(verse.surahId, verse.verseNumber, verse.surahName)
-                                },
-                                onRemove = {
-                                    if (selectedTab == 0) viewModel.removeFavourite(verse.surahId, verse.verseNumber)
-                                    else viewModel.removeBookmark(verse.surahId, verse.verseNumber)
-                                }
+                    if (list.isEmpty()) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text(
+                                text = emptyLabel,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(horizontal = 48.dp)
                             )
+                        }
+                    } else {
+                        // springOverscroll here — local bounce, tabs are unaffected
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 16.dp)
+                                .springOverscroll(),
+                            contentPadding = PaddingValues(top = 12.dp, bottom = 100.dp),
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            itemsIndexed(
+                                items = list,
+                                key = { _, verse -> "${verse.surahId}:${verse.verseNumber}" }
+                            ) { index, verse ->
+                                SavedVerseItem(
+                                    verse = verse,
+                                    isFirst = index == 0,
+                                    isLast = index == list.size - 1,
+                                    onClick = {
+                                        onVerseClick(verse.surahId, verse.verseNumber, verse.surahName)
+                                    },
+                                    onRemove = {
+                                        if (page == 0) viewModel.removeFavourite(verse.surahId, verse.verseNumber)
+                                        else viewModel.removeBookmark(verse.surahId, verse.verseNumber)
+                                    }
+                                )
+                            }
                         }
                     }
                 }
             }
         }
-        } // end springOverscroll
     }
 }
 
@@ -173,7 +188,7 @@ private fun SavedVerseItem(
     onClick: () -> Unit,
     onRemove: () -> Unit
 ) {
-    val topRadius = if (isFirst) 20.dp else 4.dp
+    val topRadius    = if (isFirst) 20.dp else 4.dp
     val bottomRadius = if (isLast) 20.dp else 4.dp
     val interactionSource = remember { MutableInteractionSource() }
 
@@ -224,4 +239,3 @@ private fun SavedVerseItem(
         )
     )
 }
-
