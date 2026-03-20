@@ -22,6 +22,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.deenbase.app.ui.springOverscroll
 import com.deenbase.app.features.home.viewmodel.GoalViewModel
 
 private val PRESET_TARGETS = listOf(
@@ -95,6 +96,7 @@ fun QuranGoalScreen(
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
+        Box(modifier = Modifier.fillMaxSize().springOverscroll()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -244,5 +246,7 @@ fun QuranGoalScreen(
 
             Spacer(modifier = Modifier.height(80.dp))
         }
+        } // end springOverscroll
     }
 }
+

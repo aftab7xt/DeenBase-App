@@ -18,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import com.deenbase.app.ui.springOverscroll
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -69,6 +70,7 @@ fun SavedVersesScreen(
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
+        Box(modifier = Modifier.fillMaxSize().springOverscroll()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -159,6 +161,7 @@ fun SavedVersesScreen(
                 }
             }
         }
+        } // end springOverscroll
     }
 }
 
@@ -221,3 +224,4 @@ private fun SavedVerseItem(
         )
     )
 }
+

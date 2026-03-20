@@ -117,7 +117,10 @@ fun QuranSearchScreen(
                 isLoading -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            CircularWavyProgressIndicator()
+                            LoadingIndicator(
+                                modifier = Modifier.size(64.dp),
+                                color = MaterialTheme.colorScheme.primary
+                            )
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
                                 "Searching...",

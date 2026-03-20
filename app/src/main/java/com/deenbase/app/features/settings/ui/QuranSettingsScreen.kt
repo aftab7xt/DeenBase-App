@@ -27,6 +27,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.deenbase.app.ui.springOverscroll
 import com.deenbase.app.R
 import com.deenbase.app.features.settings.viewmodel.QuranSettingsViewModel
 
@@ -83,6 +84,7 @@ fun QuranSettingsScreen(
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
+        Box(modifier = Modifier.fillMaxSize().springOverscroll()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -212,6 +214,7 @@ fun QuranSettingsScreen(
             Spacer(modifier = Modifier.height(100.dp))
         }
     }
+        } // end springOverscroll
 }
 
 @Composable
@@ -348,3 +351,4 @@ private fun SwitchSettingsItem(
         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
     )
 }
+

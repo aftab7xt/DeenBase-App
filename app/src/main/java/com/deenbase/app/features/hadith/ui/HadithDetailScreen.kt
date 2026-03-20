@@ -12,6 +12,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import com.deenbase.app.ui.springOverscroll
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -65,7 +66,7 @@ fun HadithDetailScreen(
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.fillMaxSize().springOverscroll()) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -271,3 +272,4 @@ private fun SectionLabel(text: String) {
         modifier = Modifier.padding(start = 8.dp, bottom = 4.dp)
     )
 }
+

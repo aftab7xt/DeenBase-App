@@ -22,6 +22,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.deenbase.app.ui.springOverscroll
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
@@ -179,6 +180,7 @@ fun NotificationSettingsScreen(
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
+        Box(modifier = Modifier.fillMaxSize().springOverscroll()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -260,4 +262,6 @@ fun NotificationSettingsScreen(
             Spacer(modifier = Modifier.height(100.dp))
         }
     }
+        } // end springOverscroll
 }
+

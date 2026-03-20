@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.deenbase.app.ui.springOverscroll
 import com.deenbase.app.features.settings.viewmodel.AppPreferencesViewModel
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -160,6 +161,7 @@ fun AppPreferencesScreen(
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
+        Box(modifier = Modifier.fillMaxSize().springOverscroll()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -236,4 +238,6 @@ fun AppPreferencesScreen(
             Spacer(modifier = Modifier.height(100.dp))
         }
     }
+        } // end springOverscroll
 }
+

@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
+import com.deenbase.app.ui.springOverscroll
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -104,7 +105,7 @@ fun HadithSearchScreen(
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.fillMaxSize().springOverscroll()) {
             LazyColumn(
                 state = listState,
                 modifier = Modifier
@@ -254,3 +255,4 @@ fun HadithSearchScreen(
         }
     }
 }
+
