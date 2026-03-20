@@ -56,18 +56,19 @@ class SavedVersesViewModel(application: Application) : AndroidViewModel(applicat
     private suspend fun fetchVerses(keys: Set<String>): List<Verse> {
         if (keys.isEmpty()) return emptyList()
         val lang = translationLang.value
+        val refs = keys.mapNotNull { key ->
+            val parts = key.split(":")
+            val surahId  = parts.getOrNull(0)?.toIntOrNull() ?: return@mapNotNull null
+            val verseNum = parts.getOrNull(1)?.toIntOrNull() ?: return@mapNotNull null
+            Pair(surahId, verseNum)
+        }
         return withContext(Dispatchers.IO) {
-            keys.mapNotNull { key ->
-                val parts = key.split(":")
-                val surahId = parts.getOrNull(0)?.toIntOrNull() ?: return@mapNotNull null
-                val verseNum = parts.getOrNull(1)?.toIntOrNull() ?: return@mapNotNull null
-                try {
-                    repository.getVersesForSurah(surahId, lang)
-                        .find { it.verseNumber == verseNum }
-                } catch (e: Exception) {
-                    null
-                }
-            }.sortedWith(compareBy({ it.surahId }, { it.verseNumber }))
+            try {
+                repository.fetchVersesByReferences(refs, lang)
+                    .sortedWith(compareBy({ it.surahId }, { it.verseNumber }))
+            } catch (e: Exception) {
+                emptyList()
+            }
         }
     }
 

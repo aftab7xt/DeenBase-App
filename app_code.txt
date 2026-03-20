@@ -21,8 +21,8 @@ android {
         applicationId = "com.deenbase.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 9
-        versionName = "1.3.1"
+        versionCode = 10
+        versionName = "1.3.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -467,6 +467,7 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
@@ -474,48 +475,48 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.Velocity
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.sign
 
-class SpringOverscrollConnection : NestedScrollConnection {
+class SpringOverscrollConnection(private val scope: CoroutineScope) : NestedScrollConnection {
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     val overscrollY = Animatable(0f)
     private var animJob: Job? = null
 
     private fun snapTo(target: Float) {
         animJob?.cancel()
-        animJob = scope.launch { overscrollY.snapTo(target) }
+        animJob = scope.launch {
+            try {
+                overscrollY.snapTo(target)
+            } catch (_: Exception) {}
+        }
     }
 
     private fun springBackTo(target: Float) {
         animJob?.cancel()
         animJob = scope.launch {
-            overscrollY.animateTo(
-                target,
-                spring(
-                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                    stiffness    = Spring.StiffnessMedium
+            try {
+                overscrollY.animateTo(
+                    target,
+                    spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness    = Spring.StiffnessMedium
+                    )
                 )
-            )
+            } catch (_: Exception) {}
         }
     }
 
-    // Called before the scroll child gets the event
     override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-        // If we're stretched and user scrolls back the other way, consume to collapse first
         val current = overscrollY.value
         if (abs(current) > 0.5f && source == NestedScrollSource.UserInput) {
             val isSameDirection = sign(available.y) == sign(current)
             if (!isSameDirection) {
                 val next = current + available.y
                 return if (sign(next) != sign(current)) {
-                    // crossed zero — snap to 0 and pass leftover to scroll
                     val consumed = -current
                     snapTo(0f)
                     Offset(0f, consumed)
@@ -528,7 +529,6 @@ class SpringOverscrollConnection : NestedScrollConnection {
         return Offset.Zero
     }
 
-    // Called after scroll child consumed what it could — leftover is overscroll
     override fun onPostScroll(
         consumed: Offset,
         available: Offset,
@@ -552,7 +552,8 @@ class SpringOverscrollConnection : NestedScrollConnection {
 
 @Composable
 fun Modifier.springOverscroll(): Modifier {
-    val connection = remember { SpringOverscrollConnection() }
+    val scope = rememberCoroutineScope()
+    val connection = remember(scope) { SpringOverscrollConnection(scope) }
     return this
         .nestedScroll(connection)
         .graphicsLayer { translationY = connection.overscrollY.value }
@@ -636,7 +637,6 @@ import com.deenbase.app.features.tasbih.ui.SubhanallahScreen
 import com.deenbase.app.features.tasbih.viewmodel.TasbihViewModel
 import com.deenbase.app.ui.theme.DeenBaseTheme
 import com.deenbase.app.ui.LocalHapticsEnabled
-import com.deenbase.app.ui.springOverscroll
 import com.deenbase.app.data.SettingsManager
 import com.deenbase.app.update.UpdateViewModel
 
@@ -795,12 +795,7 @@ class MainActivity : ComponentActivity() {
                                 currentRoute != "quran_search"
 
                             Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                                // ── springOverscroll wraps everything — works with LazyColumn globally ──
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .springOverscroll()
-                                ) {
+                                Box(modifier = Modifier.fillMaxSize()) {
                                     NavHost(
                                         navController = navController,
                                         startDestination = Screen.Home.route,
@@ -1738,6 +1733,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
+import com.deenbase.app.ui.springOverscroll
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -1816,6 +1812,7 @@ fun QuranScreen(
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
+        Box(modifier = Modifier.fillMaxSize().springOverscroll()) {
         if (surahs.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
                 CircularWavyProgressIndicator()
@@ -1845,6 +1842,7 @@ fun QuranScreen(
                 item { Spacer(modifier = Modifier.height(100.dp)) }
             }
         }
+        } // end springOverscroll Box
     }
 }
 
@@ -1909,6 +1907,7 @@ fun SurahItem(
         )
     )
 }
+
 
 === ./app/src/main/java/com/deenbase/app/features/quran/ui/ReadingScreen.kt ===
 package com.deenbase.app.features.quran.ui
@@ -2666,12 +2665,15 @@ fun ReaderBottomNavigation(
 === ./app/src/main/java/com/deenbase/app/features/quran/ui/SavedVersesScreen.kt ===
 package com.deenbase.app.features.quran.ui
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -2693,8 +2695,11 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.deenbase.app.features.quran.data.Verse
 import com.deenbase.app.features.quran.viewmodel.SavedVersesViewModel
+import com.deenbase.app.ui.springOverscroll
+import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class,
+    ExperimentalFoundationApi::class)
 @Composable
 fun SavedVersesScreen(
     onNavigateBack: () -> Unit,
@@ -2702,10 +2707,15 @@ fun SavedVersesScreen(
     viewModel: SavedVersesViewModel = viewModel()
 ) {
     val favourites by viewModel.favourites.collectAsState()
-    val bookmarks by viewModel.bookmarks.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
+    val bookmarks  by viewModel.bookmarks.collectAsState()
+    val isLoading  by viewModel.isLoading.collectAsState()
 
-    var selectedTab by remember { mutableIntStateOf(0) }
+    val pagerState = rememberPagerState(pageCount = { 2 })
+    val scope      = rememberCoroutineScope()
+
+    // Keep tab indicator and pager in sync
+    val selectedTab = pagerState.currentPage
+    LaunchedEffect(pagerState.currentPage) { /* currentPage drives selectedTab directly */ }
 
     val gradientBrush = Brush.verticalGradient(
         colors = listOf(MaterialTheme.colorScheme.background, Color.Transparent)
@@ -2740,7 +2750,7 @@ fun SavedVersesScreen(
                 .fillMaxSize()
                 .padding(top = innerPadding.calculateTopPadding())
         ) {
-            // ── Tabs ──────────────────────────────────────────────────────────
+            // ── Tabs — intentionally outside any scrollable/overscrollable area ──
             TabRow(
                 selectedTabIndex = selectedTab,
                 containerColor = Color.Transparent,
@@ -2748,7 +2758,7 @@ fun SavedVersesScreen(
             ) {
                 Tab(
                     selected = selectedTab == 0,
-                    onClick = { selectedTab = 0 },
+                    onClick = { scope.launch { pagerState.animateScrollToPage(0) } },
                     text = {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -2761,7 +2771,7 @@ fun SavedVersesScreen(
                 )
                 Tab(
                     selected = selectedTab == 1,
-                    onClick = { selectedTab = 1 },
+                    onClick = { scope.launch { pagerState.animateScrollToPage(1) } },
                     text = {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -2774,52 +2784,59 @@ fun SavedVersesScreen(
                 )
             }
 
-            // ── Content ───────────────────────────────────────────────────────
+            // ── Pager — swipe switches tabs, spring overscroll per-page ─────────
             if (isLoading) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularWavyProgressIndicator()
                 }
             } else {
-                val currentList = if (selectedTab == 0) favourites else bookmarks
-                val emptyLabel = if (selectedTab == 0)
-                    "No favourites yet.\nTap ♡ while reading a verse."
-                else
-                    "No bookmarks yet.\nTap 🔖 while reading a verse."
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier.fillMaxSize()
+                ) { page ->
+                    val list = if (page == 0) favourites else bookmarks
+                    val emptyLabel = if (page == 0)
+                        "No favourites yet.\nTap ♡ while reading a verse."
+                    else
+                        "No bookmarks yet.\nTap 🔖 while reading a verse."
 
-                if (currentList.isEmpty()) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text(
-                            text = emptyLabel,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(horizontal = 48.dp)
-                        )
-                    }
-                } else {
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 16.dp),
-                        contentPadding = PaddingValues(top = 12.dp, bottom = 100.dp),
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
-                    ) {
-                        itemsIndexed(
-                            items = currentList,
-                            key = { _, verse -> "${verse.surahId}:${verse.verseNumber}" }
-                        ) { index, verse ->
-                            SavedVerseItem(
-                                verse = verse,
-                                isFirst = index == 0,
-                                isLast = index == currentList.size - 1,
-                                onClick = {
-                                    onVerseClick(verse.surahId, verse.verseNumber, verse.surahName)
-                                },
-                                onRemove = {
-                                    if (selectedTab == 0) viewModel.removeFavourite(verse.surahId, verse.verseNumber)
-                                    else viewModel.removeBookmark(verse.surahId, verse.verseNumber)
-                                }
+                    if (list.isEmpty()) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text(
+                                text = emptyLabel,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(horizontal = 48.dp)
                             )
+                        }
+                    } else {
+                        // springOverscroll here — local bounce, tabs are unaffected
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 16.dp)
+                                .springOverscroll(),
+                            contentPadding = PaddingValues(top = 12.dp, bottom = 100.dp),
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            itemsIndexed(
+                                items = list,
+                                key = { _, verse -> "${verse.surahId}:${verse.verseNumber}" }
+                            ) { index, verse ->
+                                SavedVerseItem(
+                                    verse = verse,
+                                    isFirst = index == 0,
+                                    isLast = index == list.size - 1,
+                                    onClick = {
+                                        onVerseClick(verse.surahId, verse.verseNumber, verse.surahName)
+                                    },
+                                    onRemove = {
+                                        if (page == 0) viewModel.removeFavourite(verse.surahId, verse.verseNumber)
+                                        else viewModel.removeBookmark(verse.surahId, verse.verseNumber)
+                                    }
+                                )
+                            }
                         }
                     }
                 }
@@ -2836,7 +2853,7 @@ private fun SavedVerseItem(
     onClick: () -> Unit,
     onRemove: () -> Unit
 ) {
-    val topRadius = if (isFirst) 20.dp else 4.dp
+    val topRadius    = if (isFirst) 20.dp else 4.dp
     val bottomRadius = if (isLast) 20.dp else 4.dp
     val interactionSource = remember { MutableInteractionSource() }
 
@@ -3634,18 +3651,19 @@ class SavedVersesViewModel(application: Application) : AndroidViewModel(applicat
     private suspend fun fetchVerses(keys: Set<String>): List<Verse> {
         if (keys.isEmpty()) return emptyList()
         val lang = translationLang.value
+        val refs = keys.mapNotNull { key ->
+            val parts = key.split(":")
+            val surahId  = parts.getOrNull(0)?.toIntOrNull() ?: return@mapNotNull null
+            val verseNum = parts.getOrNull(1)?.toIntOrNull() ?: return@mapNotNull null
+            Pair(surahId, verseNum)
+        }
         return withContext(Dispatchers.IO) {
-            keys.mapNotNull { key ->
-                val parts = key.split(":")
-                val surahId = parts.getOrNull(0)?.toIntOrNull() ?: return@mapNotNull null
-                val verseNum = parts.getOrNull(1)?.toIntOrNull() ?: return@mapNotNull null
-                try {
-                    repository.getVersesForSurah(surahId, lang)
-                        .find { it.verseNumber == verseNum }
-                } catch (e: Exception) {
-                    null
-                }
-            }.sortedWith(compareBy({ it.surahId }, { it.verseNumber }))
+            try {
+                repository.fetchVersesByReferences(refs, lang)
+                    .sortedWith(compareBy({ it.surahId }, { it.verseNumber }))
+            } catch (e: Exception) {
+                emptyList()
+            }
         }
     }
 
@@ -3826,6 +3844,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import com.deenbase.app.ui.springOverscroll
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -3874,7 +3893,7 @@ fun HadithScreen(
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.fillMaxSize().springOverscroll()) {
             when {
                 state.isLoading -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -3983,6 +4002,7 @@ private fun BookCard(book: Book, onClick: () -> Unit) {
     }
 }
 
+
 === ./app/src/main/java/com/deenbase/app/features/hadith/ui/HadithDetailScreen.kt ===
 package com.deenbase.app.features.hadith.ui
 
@@ -3998,6 +4018,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import com.deenbase.app.ui.springOverscroll
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -4051,7 +4072,7 @@ fun HadithDetailScreen(
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.fillMaxSize().springOverscroll()) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -4258,6 +4279,7 @@ private fun SectionLabel(text: String) {
     )
 }
 
+
 === ./app/src/main/java/com/deenbase/app/features/hadith/ui/HadithSearchScreen.kt ===
 package com.deenbase.app.features.hadith.ui
 
@@ -4279,6 +4301,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
+import com.deenbase.app.ui.springOverscroll
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -4365,7 +4388,7 @@ fun HadithSearchScreen(
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.fillMaxSize().springOverscroll()) {
             LazyColumn(
                 state = listState,
                 modifier = Modifier
@@ -4516,6 +4539,7 @@ fun HadithSearchScreen(
     }
 }
 
+
 === ./app/src/main/java/com/deenbase/app/features/hadith/ui/HadithListScreen.kt ===
 package com.deenbase.app.features.hadith.ui
 
@@ -4532,6 +4556,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import com.deenbase.app.ui.springOverscroll
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -4599,7 +4624,7 @@ fun HadithListScreen(
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.fillMaxSize().springOverscroll()) {
             when {
                 state.isLoading -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -4722,6 +4747,7 @@ fun HadithListScreen(
     }
 }
 
+
 === ./app/src/main/java/com/deenbase/app/features/hadith/ui/ChaptersScreen.kt ===
 package com.deenbase.app.features.hadith.ui
 
@@ -4739,6 +4765,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import com.deenbase.app.ui.springOverscroll
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -4781,7 +4808,7 @@ fun ChaptersScreen(
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.fillMaxSize().springOverscroll()) {
             when {
                 state.isLoading -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -4871,6 +4898,7 @@ fun ChaptersScreen(
         }
     }
 }
+
 
 === ./app/src/main/java/com/deenbase/app/features/hadith/data/HadithModels.kt ===
 package com.deenbase.app.features.hadith.data
@@ -5548,6 +5576,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.deenbase.app.BuildConfig
+import com.deenbase.app.ui.springOverscroll
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -5580,6 +5609,7 @@ fun SettingsScreen(
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
+        Box(modifier = Modifier.fillMaxSize().springOverscroll()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -5627,6 +5657,7 @@ fun SettingsScreen(
             }
         }
     }
+        } // end springOverscroll
 }
 
 @Composable
@@ -5705,6 +5736,7 @@ fun SettingsItem(
     }
 }
 
+
 === ./app/src/main/java/com/deenbase/app/features/settings/ui/QuranSettingsScreen.kt ===
 package com.deenbase.app.features.settings.ui
 
@@ -5735,6 +5767,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.deenbase.app.ui.springOverscroll
 import com.deenbase.app.R
 import com.deenbase.app.features.settings.viewmodel.QuranSettingsViewModel
 
@@ -5791,6 +5824,7 @@ fun QuranSettingsScreen(
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
+        Box(modifier = Modifier.fillMaxSize().springOverscroll()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -5920,6 +5954,7 @@ fun QuranSettingsScreen(
             Spacer(modifier = Modifier.height(100.dp))
         }
     }
+        } // end springOverscroll
 }
 
 @Composable
@@ -6057,6 +6092,7 @@ private fun SwitchSettingsItem(
     )
 }
 
+
 === ./app/src/main/java/com/deenbase/app/features/settings/ui/AppPreferencesScreen.kt ===
 package com.deenbase.app.features.settings.ui
 
@@ -6080,6 +6116,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.deenbase.app.ui.springOverscroll
 import com.deenbase.app.features.settings.viewmodel.AppPreferencesViewModel
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -6220,6 +6257,7 @@ fun AppPreferencesScreen(
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
+        Box(modifier = Modifier.fillMaxSize().springOverscroll()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -6296,7 +6334,9 @@ fun AppPreferencesScreen(
             Spacer(modifier = Modifier.height(100.dp))
         }
     }
+        } // end springOverscroll
 }
+
 
 === ./app/src/main/java/com/deenbase/app/features/settings/ui/NotificationSettingsScreen.kt ===
 package com.deenbase.app.features.settings.ui
@@ -6323,6 +6363,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.deenbase.app.ui.springOverscroll
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
@@ -6480,6 +6521,7 @@ fun NotificationSettingsScreen(
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
+        Box(modifier = Modifier.fillMaxSize().springOverscroll()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -6561,7 +6603,9 @@ fun NotificationSettingsScreen(
             Spacer(modifier = Modifier.height(100.dp))
         }
     }
+        } // end springOverscroll
 }
+
 
 === ./app/src/main/java/com/deenbase/app/features/settings/ui/QuranGoalScreen.kt ===
 package com.deenbase.app.features.settings.ui
@@ -6588,6 +6632,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.deenbase.app.ui.springOverscroll
 import com.deenbase.app.features.home.viewmodel.GoalViewModel
 
 private val PRESET_TARGETS = listOf(
@@ -6661,6 +6706,7 @@ fun QuranGoalScreen(
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
+        Box(modifier = Modifier.fillMaxSize().springOverscroll()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -6810,8 +6856,10 @@ fun QuranGoalScreen(
 
             Spacer(modifier = Modifier.height(80.dp))
         }
+        } // end springOverscroll
     }
 }
+
 
 === ./app/src/main/java/com/deenbase/app/features/settings/ui/AboutScreen.kt ===
 package com.deenbase.app.features.settings.ui
@@ -6846,6 +6894,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
+import com.deenbase.app.ui.springOverscroll
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalUriHandler
@@ -6938,7 +6987,7 @@ fun AboutScreen(
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.fillMaxSize().springOverscroll()) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -7097,6 +7146,7 @@ fun AboutScreen(
         }
     }
 }
+
 
 
 === ./app/src/main/java/com/deenbase/app/features/settings/viewmodel/SettingsViewModel.kt ===
@@ -7315,6 +7365,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.deenbase.app.features.home.viewmodel.GoalViewModel
+import com.deenbase.app.ui.springOverscroll
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -7493,7 +7544,7 @@ fun HomeScreen(
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.fillMaxSize().springOverscroll()) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -7882,6 +7933,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
+import com.deenbase.app.ui.springOverscroll
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -7941,7 +7993,7 @@ fun DhikrScreen(
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.fillMaxSize().springOverscroll()) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -8023,6 +8075,7 @@ private fun DhikrCard(title: String, subtitle: String, isDone: Boolean, topShape
         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
     )
 }
+
 
 
 === ./app/src/main/java/com/deenbase/app/features/dhikr/ui/DhikrDetailScreen.kt ===

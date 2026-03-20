@@ -11,6 +11,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import org.json.JSONArray
 
 private val Context.dataStore by preferencesDataStore(name = "settings")
 
@@ -63,6 +64,10 @@ class SettingsManager(private val context: Context) {
         // Verse favourites and bookmarks — stored as "surahId:verseNumber" e.g. "2:255"
         val FAVOURITE_VERSES  = stringSetPreferencesKey("favourite_verses")
         val BOOKMARKED_VERSES = stringSetPreferencesKey("bookmarked_verses")
+
+        // Quran search history — stored as JSON array string, newest first, max 10
+        val QURAN_SEARCH_HISTORY = stringPreferencesKey("quran_search_history")
+        const val SEARCH_HISTORY_MAX = 10
     }
 
     // ── Quran display ─────────────────────────────────────────────────────────
@@ -169,6 +174,52 @@ class SettingsManager(private val context: Context) {
             val current = prefs[BOOKMARKED_VERSES] ?: emptySet()
             prefs[BOOKMARKED_VERSES] = if (key in current) current - key else current + key
         }
+    }
+
+    // ── Quran search history ──────────────────────────────────────────────────
+    // Stored as a JSON array string, newest first, capped at SEARCH_HISTORY_MAX
+
+    val quranSearchHistory: Flow<List<String>> = context.dataStore.data.map { prefs ->
+        parseHistory(prefs[QURAN_SEARCH_HISTORY])
+    }
+
+    suspend fun addSearchHistoryItem(query: String) {
+        val trimmed = query.trim()
+        if (trimmed.isBlank()) return
+        context.dataStore.edit { prefs ->
+            val current = parseHistory(prefs[QURAN_SEARCH_HISTORY])
+            // Remove duplicate if exists, add to front, cap at max
+            val updated = (listOf(trimmed) + current.filter { it != trimmed })
+                .take(SEARCH_HISTORY_MAX)
+            prefs[QURAN_SEARCH_HISTORY] = serializeHistory(updated)
+        }
+    }
+
+    suspend fun removeSearchHistoryItem(query: String) {
+        context.dataStore.edit { prefs ->
+            val current = parseHistory(prefs[QURAN_SEARCH_HISTORY])
+            prefs[QURAN_SEARCH_HISTORY] = serializeHistory(current.filter { it != query })
+        }
+    }
+
+    suspend fun clearSearchHistory() {
+        context.dataStore.edit { it.remove(QURAN_SEARCH_HISTORY) }
+    }
+
+    private fun parseHistory(raw: String?): List<String> {
+        if (raw.isNullOrBlank()) return emptyList()
+        return try {
+            val arr = JSONArray(raw)
+            (0 until arr.length()).map { arr.getString(it) }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    private fun serializeHistory(list: List<String>): String {
+        val arr = JSONArray()
+        list.forEach { arr.put(it) }
+        return arr.toString()
     }
 
     // ── Reset ─────────────────────────────────────────────────────────────────
