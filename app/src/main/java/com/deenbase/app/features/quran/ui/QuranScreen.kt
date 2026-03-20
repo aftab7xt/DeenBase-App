@@ -23,6 +23,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
+import com.deenbase.app.ui.springOverscroll
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -101,6 +102,7 @@ fun QuranScreen(
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
+        Box(modifier = Modifier.fillMaxSize().springOverscroll()) {
         if (surahs.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
                 CircularWavyProgressIndicator()
@@ -130,6 +132,7 @@ fun QuranScreen(
                 item { Spacer(modifier = Modifier.height(100.dp)) }
             }
         }
+        } // end springOverscroll Box
     }
 }
 
@@ -194,3 +197,4 @@ fun SurahItem(
         )
     )
 }
+

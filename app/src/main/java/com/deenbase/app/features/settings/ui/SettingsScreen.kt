@@ -32,6 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.deenbase.app.BuildConfig
+import com.deenbase.app.ui.springOverscroll
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -64,6 +65,7 @@ fun SettingsScreen(
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
+        Box(modifier = Modifier.fillMaxSize().springOverscroll()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -111,6 +113,7 @@ fun SettingsScreen(
             }
         }
     }
+        } // end springOverscroll
 }
 
 @Composable
@@ -188,3 +191,4 @@ fun SettingsItem(
         }
     }
 }
+
