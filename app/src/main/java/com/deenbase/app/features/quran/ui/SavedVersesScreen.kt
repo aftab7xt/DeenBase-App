@@ -1,5 +1,7 @@
 package com.deenbase.app.features.quran.ui
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -19,7 +21,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -39,13 +43,14 @@ import kotlinx.coroutines.launch
 fun SavedVersesScreen(
     onNavigateBack: () -> Unit,
     onVerseClick: (surahId: Int, verseNumber: Int, surahName: String) -> Unit,
+    startTab: Int = 0,
     viewModel: SavedVersesViewModel = viewModel()
 ) {
     val favourites by viewModel.favourites.collectAsState()
     val bookmarks  by viewModel.bookmarks.collectAsState()
     val isLoading  by viewModel.isLoading.collectAsState()
 
-    val pagerState = rememberPagerState(pageCount = { 2 })
+    val pagerState = rememberPagerState(initialPage = startTab, pageCount = { 2 })
     val scope      = rememberCoroutineScope()
 
     // Keep tab indicator and pager in sync
@@ -55,6 +60,12 @@ fun SavedVersesScreen(
     val gradientBrush = Brush.verticalGradient(
         colors = listOf(MaterialTheme.colorScheme.background, Color.Transparent)
     )
+
+    // ── Entrance animation ────────────────────────────────────────────────────
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { visible = true }
+    val contentAlpha by animateFloatAsState(targetValue = if (visible) 1f else 0f, animationSpec = tween(400, 60), label = "alpha")
+    val contentScale by animateFloatAsState(targetValue = if (visible) 1f else 0.97f, animationSpec = tween(400, 60), label = "scale")
 
     Scaffold(
         topBar = {
@@ -84,6 +95,8 @@ fun SavedVersesScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(top = innerPadding.calculateTopPadding())
+                .alpha(contentAlpha)
+                .scale(contentScale)
         ) {
             // ── Tabs — intentionally outside any scrollable/overscrollable area ──
             TabRow(

@@ -66,7 +66,8 @@ class SettingsManager(private val context: Context) {
         val BOOKMARKED_VERSES = stringSetPreferencesKey("bookmarked_verses")
 
         // Quran search history — stored as JSON array string, newest first, max 10
-        val QURAN_SEARCH_HISTORY = stringPreferencesKey("quran_search_history")
+        val QURAN_SEARCH_HISTORY  = stringPreferencesKey("quran_search_history")
+        val HADITH_SEARCH_HISTORY = stringPreferencesKey("hadith_search_history")
         const val SEARCH_HISTORY_MAX = 10
     }
 
@@ -204,6 +205,32 @@ class SettingsManager(private val context: Context) {
 
     suspend fun clearSearchHistory() {
         context.dataStore.edit { it.remove(QURAN_SEARCH_HISTORY) }
+    }
+
+    // ── Hadith search history ─────────────────────────────────────────────────
+    val hadithSearchHistory: Flow<List<String>> = context.dataStore.data.map { prefs ->
+        parseHistory(prefs[HADITH_SEARCH_HISTORY])
+    }
+
+    suspend fun addHadithSearchHistoryItem(query: String) {
+        val trimmed = query.trim()
+        if (trimmed.isBlank()) return
+        context.dataStore.edit { prefs ->
+            val current = parseHistory(prefs[HADITH_SEARCH_HISTORY])
+            val updated = (listOf(trimmed) + current.filter { it != trimmed }).take(SEARCH_HISTORY_MAX)
+            prefs[HADITH_SEARCH_HISTORY] = serializeHistory(updated)
+        }
+    }
+
+    suspend fun removeHadithSearchHistoryItem(query: String) {
+        context.dataStore.edit { prefs ->
+            val current = parseHistory(prefs[HADITH_SEARCH_HISTORY])
+            prefs[HADITH_SEARCH_HISTORY] = serializeHistory(current.filter { it != query })
+        }
+    }
+
+    suspend fun clearHadithSearchHistory() {
+        context.dataStore.edit { it.remove(HADITH_SEARCH_HISTORY) }
     }
 
     private fun parseHistory(raw: String?): List<String> {

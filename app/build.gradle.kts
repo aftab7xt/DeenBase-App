@@ -20,15 +20,15 @@ android {
         applicationId = "com.deenbase.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 11
-        versionName = "1.4.1"
+        versionCode = 12
+        versionName = "1.5.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         // ── Expose secrets to code via BuildConfig ────────────────────────────
-        buildConfigField("String", "TURSO_URL",      "\"${localProps["TURSO_URL"]}\"")
-        buildConfigField("String", "TURSO_TOKEN",    "\"${localProps["TURSO_TOKEN"]}\"")
-        buildConfigField("String", "GEMINI_API_KEY", "\"${localProps["GEMINI_API_KEY"]}\"")
+        buildConfigField("String", "TURSO_URL",    "\"${localProps["TURSO_URL"]}\"")
+        buildConfigField("String", "TURSO_TOKEN",  "\"${localProps["TURSO_TOKEN"]}\"")
+        buildConfigField("String", "GROQ_API_KEY", "\"${localProps["GROQ_API_KEY"]}\"")
     }
 
     buildTypes {

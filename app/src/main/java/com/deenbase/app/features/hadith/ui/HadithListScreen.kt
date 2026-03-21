@@ -1,5 +1,7 @@
 package com.deenbase.app.features.hadith.ui
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -12,6 +14,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import com.deenbase.app.ui.springOverscroll
 import androidx.compose.ui.graphics.Color
@@ -36,7 +40,12 @@ fun HadithListScreen(
         colors = listOf(MaterialTheme.colorScheme.background, Color.Transparent)
     )
 
-    // Trigger load more near bottom
+    // ── Entrance animation ────────────────────────────────────────────────────
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { visible = true }
+    val contentAlpha by animateFloatAsState(targetValue = if (visible) 1f else 0f, animationSpec = tween(400, 60), label = "alpha")
+    val contentScale by animateFloatAsState(targetValue = if (visible) 1f else 0.97f, animationSpec = tween(400, 60), label = "scale")
+
     val shouldLoadMore by remember {
         derivedStateOf {
             val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
@@ -74,14 +83,18 @@ fun HadithListScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = Color.Transparent
-                )
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.Transparent)
             )
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
-        Box(modifier = Modifier.fillMaxSize().springOverscroll()) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .springOverscroll()
+                .alpha(contentAlpha)
+                .scale(contentScale)
+        ) {
             when {
                 state.isLoading -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -107,9 +120,7 @@ fun HadithListScreen(
                             .padding(horizontal = 16.dp),
                         verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
-                        item {
-                            Spacer(modifier = Modifier.height(innerPadding.calculateTopPadding() + 4.dp))
-                        }
+                        item { Spacer(modifier = Modifier.height(innerPadding.calculateTopPadding() + 4.dp)) }
 
                         itemsIndexed(state.hadiths) { index, hadith ->
                             val isFirst = index == 0
@@ -120,13 +131,8 @@ fun HadithListScreen(
                             Card(
                                 onClick = { onHadithClick(hadith) },
                                 modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(
-                                    topStart = topRadius, topEnd = topRadius,
-                                    bottomStart = bottomRadius, bottomEnd = bottomRadius
-                                ),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                                )
+                                shape = RoundedCornerShape(topStart = topRadius, topEnd = topRadius, bottomStart = bottomRadius, bottomEnd = bottomRadius),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
                             ) {
                                 Column(
                                     modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -137,12 +143,7 @@ fun HadithListScreen(
                                         horizontalArrangement = Arrangement.SpaceBetween,
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Text(
-                                            text = "#${hadith.hadithNumber}",
-                                            style = MaterialTheme.typography.labelMedium,
-                                            color = MaterialTheme.colorScheme.primary,
-                                            fontWeight = FontWeight.SemiBold
-                                        )
+                                        Text(text = "#${hadith.hadithNumber}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
                                         hadith.status?.let { status ->
                                             if (status.isNotBlank()) {
                                                 Text(
@@ -151,37 +152,23 @@ fun HadithListScreen(
                                                     color = when (status.lowercase()) {
                                                         "sahih" -> MaterialTheme.colorScheme.primary
                                                         "hasan" -> MaterialTheme.colorScheme.tertiary
-                                                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                                                        else    -> MaterialTheme.colorScheme.onSurfaceVariant
                                                     }
                                                 )
                                             }
                                         }
                                     }
                                     if (hadith.englishNarrator.isNotBlank()) {
-                                        Text(
-                                            text = hadith.englishNarrator,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
+                                        Text(text = hadith.englishNarrator, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     }
-                                    Text(
-                                        text = hadith.hadithEnglish,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        maxLines = 3,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
+                                    Text(text = hadith.hadithEnglish, style = MaterialTheme.typography.bodyMedium, maxLines = 3, overflow = TextOverflow.Ellipsis)
                                 }
                             }
                         }
 
                         if (state.isLoadingMore) {
                             item {
-                                Box(
-                                    modifier = Modifier.fillMaxWidth().padding(16.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
+                                Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
                                     CircularWavyProgressIndicator()
                                 }
                             }
@@ -192,7 +179,6 @@ fun HadithListScreen(
                 }
             }
 
-            // Top gradient
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -203,4 +189,3 @@ fun HadithListScreen(
         }
     }
 }
-

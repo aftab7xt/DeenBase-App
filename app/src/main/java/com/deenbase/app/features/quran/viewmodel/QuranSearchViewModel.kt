@@ -27,7 +27,7 @@ import java.util.concurrent.TimeUnit
 
 class QuranSearchViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val repository = QuranRepository()
+    private val repository      = QuranRepository()
     private val settingsManager = SettingsManager(application)
 
     private val client = OkHttpClient.Builder()
@@ -42,7 +42,6 @@ class QuranSearchViewModel(application: Application) : AndroidViewModel(applicat
         viewModelScope, SharingStarted.WhileSubscribed(5000), 32f
     )
 
-    // Search history from DataStore
     val searchHistory = settingsManager.quranSearchHistory.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
     )
@@ -64,7 +63,6 @@ class QuranSearchViewModel(application: Application) : AndroidViewModel(applicat
 
     private var searchJob: Job? = null
 
-    // Just updates the text field — no API call
     fun onQueryChange(newQuery: String) {
         _query.value = newQuery
         if (newQuery.isBlank()) {
@@ -74,7 +72,6 @@ class QuranSearchViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
-    // Called only when user taps the search key on keyboard
     fun search() {
         val q = _query.value.trim()
         if (q.isBlank()) return
@@ -84,14 +81,11 @@ class QuranSearchViewModel(application: Application) : AndroidViewModel(applicat
             _hasSearched.value = true
             _error.value = null
             try {
-                val lang = settingsManager.translationLang.first()
-                val refs = withContext(Dispatchers.IO) { askGeminiForRefs(q) }
+                val lang   = settingsManager.translationLang.first()
+                val refs   = withContext(Dispatchers.IO) { askGroqForRefs(q) }
                 val verses = withContext(Dispatchers.IO) { repository.fetchVersesByReferences(refs, lang) }
                 _results.value = verses
-                // Save to history only on successful search with results
-                if (verses.isNotEmpty()) {
-                    settingsManager.addSearchHistoryItem(q)
-                }
+                if (verses.isNotEmpty()) settingsManager.addSearchHistoryItem(q)
             } catch (e: Exception) {
                 _error.value = e.javaClass.simpleName + ": " + (e.message ?: "unknown")
                 _results.value = emptyList()
@@ -101,7 +95,6 @@ class QuranSearchViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
-    // Called when user taps a history item — fills query and triggers search immediately
     fun searchFromHistory(query: String) {
         _query.value = query
         search()
@@ -115,7 +108,7 @@ class QuranSearchViewModel(application: Application) : AndroidViewModel(applicat
         viewModelScope.launch { settingsManager.clearSearchHistory() }
     }
 
-    private fun askGeminiForRefs(query: String): List<Pair<Int, Int>> {
+    private fun askGroqForRefs(query: String): List<Pair<Int, Int>> {
         val prompt = """
             You are a Quran reference assistant. Given a search query, return the most relevant Quran verse references.
             
@@ -129,32 +122,34 @@ class QuranSearchViewModel(application: Application) : AndroidViewModel(applicat
             Query: $query
         """.trimIndent()
 
+        // Groq uses OpenAI-compatible chat completions format
         val requestBody = JSONObject()
-            .put("contents", JSONArray()
+            .put("model", "llama-3.3-70b-versatile")
+            .put("messages", JSONArray()
                 .put(JSONObject()
-                    .put("parts", JSONArray()
-                        .put(JSONObject().put("text", prompt))
-                    )
+                    .put("role", "user")
+                    .put("content", prompt)
                 )
             )
+            .put("temperature", 0.1)
 
         val request = Request.Builder()
-            .url("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${BuildConfig.GEMINI_API_KEY}")
+            .url("https://api.groq.com/openai/v1/chat/completions")
+            .addHeader("Authorization", "Bearer ${BuildConfig.GROQ_API_KEY}")
             .addHeader("Content-Type", "application/json")
             .post(requestBody.toString().toRequestBody("application/json".toMediaType()))
             .build()
 
         val response = client.newCall(request).execute()
-        val body = response.body?.string() ?: error("Empty Gemini response")
-        if (!response.isSuccessful) error("Gemini HTTP ${response.code}")
+        val body = response.body?.string() ?: error("Empty Groq response")
+        if (!response.isSuccessful) error("Groq HTTP ${response.code}")
 
+        // OpenAI-compatible response: choices[0].message.content
         val text = JSONObject(body)
-            .getJSONArray("candidates")
+            .getJSONArray("choices")
             .getJSONObject(0)
-            .getJSONObject("content")
-            .getJSONArray("parts")
-            .getJSONObject(0)
-            .getString("text")
+            .getJSONObject("message")
+            .getString("content")
             .trim()
             .removePrefix("```json")
             .removePrefix("```")
@@ -163,7 +158,7 @@ class QuranSearchViewModel(application: Application) : AndroidViewModel(applicat
 
         val jsonArray = JSONArray(text)
         return (0 until jsonArray.length()).mapNotNull { i ->
-            val obj = jsonArray.getJSONObject(i)
+            val obj   = jsonArray.getJSONObject(i)
             val surah = obj.optInt("surah", 0)
             val verse = obj.optInt("verse", 0)
             if (surah in 1..114 && verse > 0) Pair(surah, verse) else null

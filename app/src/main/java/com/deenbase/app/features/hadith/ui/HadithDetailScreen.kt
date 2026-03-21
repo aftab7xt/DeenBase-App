@@ -12,6 +12,7 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -33,8 +34,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
@@ -81,6 +85,12 @@ fun HadithDetailScreen(
     val gradientBrush = Brush.verticalGradient(
         colors = listOf(MaterialTheme.colorScheme.background, Color.Transparent)
     )
+
+    // ── Entrance animation ────────────────────────────────────────────────────
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { visible = true }
+    val contentAlpha by animateFloatAsState(targetValue = if (visible) 1f else 0f, animationSpec = tween(400, 60), label = "alpha")
+    val contentScale by animateFloatAsState(targetValue = if (visible) 1f else 0.97f, animationSpec = tween(400, 60), label = "scale")
 
     // Helper: build plain-text share string
     fun buildShareText(): String = buildString {
@@ -204,7 +214,9 @@ fun HadithDetailScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(horizontal = 16.dp)
-                    .verticalScroll(rememberScrollState()),
+                    .verticalScroll(rememberScrollState())
+                    .alpha(contentAlpha)
+                    .scale(contentScale),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Spacer(modifier = Modifier.height(innerPadding.calculateTopPadding() + 4.dp))
@@ -455,7 +467,7 @@ private fun HadithShareImageBottomSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 16.dp),
+                .navigationBarsPadding(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
@@ -465,11 +477,14 @@ private fun HadithShareImageBottomSheet(
                 modifier   = Modifier.padding(bottom = 16.dp)
             )
 
-            // Scrollable wrapper so long hadiths don't clip in the preview
+            // ── Scrollable preview — bounded so button stays visible ──────────
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .weight(1f, fill = false)
+                    .heightIn(max = 420.dp)
                     .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 24.dp)
             ) {
                 Column(
                     modifier = Modifier
@@ -554,7 +569,8 @@ private fun HadithShareImageBottomSheet(
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            // ── Share button — always pinned below the preview ────────────────
+            Spacer(modifier = Modifier.height(16.dp))
 
             Button(
                 onClick  = {
@@ -564,14 +580,17 @@ private fun HadithShareImageBottomSheet(
                         onDismiss()
                     }
                 },
-                modifier = Modifier.fillMaxWidth().height(56.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+                    .height(56.dp),
                 shape    = RoundedCornerShape(16.dp)
             ) {
                 Icon(Icons.Filled.Image, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
                 Text("Share Image", fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }

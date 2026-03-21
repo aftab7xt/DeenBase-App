@@ -453,7 +453,7 @@ fun ShareImageBottomSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 16.dp),
+                .navigationBarsPadding(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
@@ -463,11 +463,14 @@ fun ShareImageBottomSheet(
                 modifier   = Modifier.padding(bottom = 16.dp)
             )
 
-            // Scrollable wrapper so long verses don't clip in the preview
+            // ── Scrollable preview — bounded so button stays visible ──────────
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .weight(1f, fill = false)
+                    .heightIn(max = 420.dp)
                     .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 24.dp)
             ) {
                 Column(
                     modifier = Modifier
@@ -556,7 +559,8 @@ fun ShareImageBottomSheet(
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            // ── Share button — always pinned below the preview ────────────────
+            Spacer(modifier = Modifier.height(16.dp))
 
             Button(
                 onClick = {
@@ -566,14 +570,17 @@ fun ShareImageBottomSheet(
                         onDismiss()
                     }
                 },
-                modifier = Modifier.fillMaxWidth().height(56.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+                    .height(56.dp),
                 shape    = RoundedCornerShape(16.dp)
             ) {
                 Icon(Icons.Filled.Image, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
                 Text("Share Image", fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }
@@ -695,7 +702,7 @@ fun ReaderBottomNavigation(
                 ),
                 modifier = Modifier.height(52.dp).weight(doneWeight)
             ) {
-                Text(text = "Done Reading", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                Text(text = "Done Reading", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false, overflow = androidx.compose.ui.text.style.TextOverflow.Clip)
             }
 
             FilledTonalButton(

@@ -1,5 +1,7 @@
 package com.deenbase.app.features.hadith.ui
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -12,7 +14,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import com.deenbase.app.ui.springOverscroll
 import androidx.compose.ui.graphics.Color
@@ -30,34 +34,40 @@ fun ChaptersScreen(
     viewModel: HadithViewModel = viewModel()
 ) {
     val state by viewModel.chaptersState.collectAsState()
-    val book by viewModel.selectedBook.collectAsState()
+    val book  by viewModel.selectedBook.collectAsState()
     val gradientBrush = Brush.verticalGradient(
         colors = listOf(MaterialTheme.colorScheme.background, Color.Transparent)
     )
+
+    // ── Entrance animation ────────────────────────────────────────────────────
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { visible = true }
+    val contentAlpha by animateFloatAsState(targetValue = if (visible) 1f else 0f, animationSpec = tween(400, 60), label = "alpha")
+    val contentScale by animateFloatAsState(targetValue = if (visible) 1f else 0.97f, animationSpec = tween(400, 60), label = "scale")
 
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
-                    Text(
-                        text = book?.bookName ?: "Chapters",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Text(text = book?.bookName ?: "Chapters", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = Color.Transparent
-                )
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.Transparent)
             )
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
-        Box(modifier = Modifier.fillMaxSize().springOverscroll()) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .springOverscroll()
+                .alpha(contentAlpha)
+                .scale(contentScale)
+        ) {
             when {
                 state.isLoading -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -73,13 +83,7 @@ fun ChaptersScreen(
                     ) {
                         Text("Failed to load chapters", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = errorMsg,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                            modifier = Modifier.padding(horizontal = 32.dp)
-                        )
+                        Text(text = errorMsg, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(horizontal = 32.dp))
                         Spacer(modifier = Modifier.height(16.dp))
                         Button(onClick = viewModel::retryChapters) { Text("Retry") }
                     }
@@ -91,43 +95,25 @@ fun ChaptersScreen(
                             .padding(horizontal = 16.dp),
                         verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
-                        item {
-                            Spacer(modifier = Modifier.height(innerPadding.calculateTopPadding() + 4.dp))
-                        }
+                        item { Spacer(modifier = Modifier.height(innerPadding.calculateTopPadding() + 4.dp)) }
 
                         itemsIndexed(state.chapters) { index, chapter ->
                             val isFirst = index == 0
-                            val isLast = index == state.chapters.lastIndex
-                            val topRadius = if (isFirst) 20.dp else 4.dp
-                            val bottomRadius = if (isLast) 20.dp else 4.dp
+                            val isLast  = index == state.chapters.lastIndex
+                            val topRadius    = if (isFirst) 20.dp else 4.dp
+                            val bottomRadius = if (isLast)  20.dp else 4.dp
 
                             ListItem(
                                 headlineContent = {
-                                    Text(
-                                        text = chapter.chapterEnglish,
-                                        fontWeight = FontWeight.SemiBold,
-                                        maxLines = 2
-                                    )
+                                    Text(text = chapter.chapterEnglish, fontWeight = FontWeight.SemiBold, maxLines = 2)
                                 },
                                 leadingContent = {
-                                    Text(
-                                        text = chapter.chapterNumber,
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.primary,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
+                                    Text(text = chapter.chapterNumber, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
                                 },
                                 modifier = Modifier
-                                    .clip(
-                                        RoundedCornerShape(
-                                            topStart = topRadius, topEnd = topRadius,
-                                            bottomStart = bottomRadius, bottomEnd = bottomRadius
-                                        )
-                                    )
+                                    .clip(RoundedCornerShape(topStart = topRadius, topEnd = topRadius, bottomStart = bottomRadius, bottomEnd = bottomRadius))
                                     .clickable { onChapterClick(chapter) },
-                                colors = ListItemDefaults.colors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                                )
+                                colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
                             )
                         }
 
@@ -136,7 +122,6 @@ fun ChaptersScreen(
                 }
             }
 
-            // Top gradient
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -147,4 +132,3 @@ fun ChaptersScreen(
         }
     }
 }
-

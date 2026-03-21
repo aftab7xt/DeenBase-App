@@ -14,7 +14,6 @@ import java.util.concurrent.TimeUnit
 
 object HadithRepository {
 
-    // ── Turso config — values injected from local.properties via BuildConfig ──
     private val TURSO_URL   = com.deenbase.app.BuildConfig.TURSO_URL
     private val TURSO_TOKEN = com.deenbase.app.BuildConfig.TURSO_TOKEN
 
@@ -27,26 +26,18 @@ object HadithRepository {
 
     private val JSON_MEDIA = "application/json".toMediaType()
 
-    // ── Low-level Turso HTTP call ─────────────────────────────────────────────
-
-    /**
-     * Execute one SQL statement and return the result rows as a list of
-     * column-name → value maps.
-     */
     private suspend fun query(sql: String, args: List<Any?> = emptyList()): List<Map<String, String?>> = withContext(Dispatchers.IO) {
         val argsArray = JSONArray()
         for (arg in args) {
             argsArray.put(when (arg) {
-                null -> JSONObject().put("type", "null")
+                null    -> JSONObject().put("type", "null")
                 is Int  -> JSONObject().put("type", "integer").put("value", arg.toString())
                 is Long -> JSONObject().put("type", "integer").put("value", arg.toString())
                 else    -> JSONObject().put("type", "text").put("value", arg.toString())
             })
         }
 
-        val stmt = JSONObject()
-            .put("sql", sql)
-            .put("args", argsArray)
+        val stmt = JSONObject().put("sql", sql).put("args", argsArray)
 
         val body = JSONObject()
             .put("requests", JSONArray()
@@ -65,31 +56,27 @@ object HadithRepository {
         val responseBody = response.body?.string() ?: error("Empty response from Turso")
         if (!response.isSuccessful) error("Turso HTTP ${response.code}: $responseBody")
 
-        val json    = JSONObject(responseBody)
-        val result  = json.getJSONArray("results")
+        val json   = JSONObject(responseBody)
+        val result = json.getJSONArray("results")
             .getJSONObject(0)
             .getJSONObject("response")
             .getJSONObject("result")
 
-        val cols = result.getJSONArray("cols")
-        val rows = result.getJSONArray("rows")
-
-        // Build column name list
+        val cols     = result.getJSONArray("cols")
+        val rows     = result.getJSONArray("rows")
         val colNames = (0 until cols.length()).map { cols.getJSONObject(it).getString("name") }
 
-        // Parse each row into a map
         (0 until rows.length()).map { rowIdx ->
             val row = rows.getJSONArray(rowIdx)
             colNames.mapIndexed { colIdx, name ->
                 val cell = row.getJSONObject(colIdx)
-                name to if (cell.getString("type") == "null") null
-                        else cell.optString("value")
+                name to if (cell.getString("type") == "null") null else cell.optString("value")
             }.toMap()
         }
     }
 
     private fun Throwable.toUserMessage(): String = when (this) {
-        is UnknownHostException  -> "No internet connection."
+        is UnknownHostException   -> "No internet connection."
         is SocketTimeoutException -> "Connection timed out. Check your connection."
         else -> message ?: "Something went wrong. Please try again."
     }
@@ -106,10 +93,10 @@ object HadithRepository {
 
         rows.map { row ->
             Book(
-                bookName      = row["name_english"] ?: "",
-                slug          = row["edition"] ?: "",
+                bookName       = row["name_english"] ?: "",
+                slug           = row["edition"] ?: "",
                 bookNameArabic = row["name_arabic"],
-                hadithsCount  = row["hadith_count"]?.toIntOrNull() ?: 0
+                hadithsCount   = row["hadith_count"]?.toIntOrNull() ?: 0
             )
         }
     }.recoverCatching { error(it.toUserMessage()) }
@@ -121,7 +108,6 @@ object HadithRepository {
             "SELECT id, chapter_number, name_english, name_arabic FROM chapters WHERE book_edition = ? AND chapter_number != 0 ORDER BY chapter_number",
             listOf(bookSlug)
         )
-
         rows.map { row ->
             Chapter(
                 id             = row["id"]?.toIntOrNull() ?: 0,
@@ -141,19 +127,20 @@ object HadithRepository {
         page: Int              = 1,
         paginate: Int          = PAGE_SIZE,
         searchEnglish: String? = null,
-        searchUrdu: String?    = null,   // not in Turso data, ignored
-        searchArabic: String?  = null    // not in Turso data, ignored
+        searchUrdu: String?    = null,
+        searchArabic: String?  = null
     ): Result<HadithsResponse> = runCatching {
 
         val offset = (page - 1) * paginate
 
         if (searchEnglish != null) {
             // ── FTS5 search ───────────────────────────────────────────────────
-            // Build FTS5 query: each word becomes a prefix match token e.g. "prayer* water*"
+            // Each word becomes a prefix token joined with OR so any match returns results.
+            // e.g. "forgiveness pardon mercy" → "forgiveness* OR pardon* OR mercy*"
             val ftsQuery = searchEnglish.trim()
                 .split("\\s+".toRegex())
                 .filter { it.isNotBlank() }
-                .joinToString(" ") { "${it.replace("\"", "")}*" }
+                .joinToString(" OR ") { "${it.replace("\"", "")}*" }
 
             val countRows = query(
                 "SELECT COUNT(*) AS c FROM hadiths_fts WHERE hadiths_fts MATCH ?",
@@ -199,24 +186,12 @@ object HadithRepository {
             )
             val total = countRows.firstOrNull()?.get("c")?.toIntOrNull() ?: 0
 
-            // If chapter_number is NULL on hadiths (some editions lack range metadata),
-            // fall back to loading all hadiths for the book ordered by hadith_number
             val (whereClause, queryArgs, countTotal) = if (total > 0) {
-                Triple(
-                    "h.book_edition = ? AND h.chapter_number = ?",
-                    listOf(book, chapter, paginate, offset),
-                    total
-                )
+                Triple("h.book_edition = ? AND h.chapter_number = ?", listOf(book, chapter, paginate, offset), total)
             } else {
-                val allCount = query(
-                    "SELECT COUNT(*) AS c FROM hadiths WHERE book_edition = ?",
-                    listOf(book)
-                ).firstOrNull()?.get("c")?.toIntOrNull() ?: 0
-                Triple(
-                    "h.book_edition = ?",
-                    listOf(book, paginate, offset),
-                    allCount
-                )
+                val allCount = query("SELECT COUNT(*) AS c FROM hadiths WHERE book_edition = ?", listOf(book))
+                    .firstOrNull()?.get("c")?.toIntOrNull() ?: 0
+                Triple("h.book_edition = ?", listOf(book, paginate, offset), allCount)
             }
 
             val rows = query("""
@@ -250,8 +225,7 @@ object HadithRepository {
 
     suspend fun getDailyHadith(dayOfYear: Int): Result<Hadith?> = runCatching {
         val offset = dayOfYear % 35903
-        val rows = query(
-            """
+        val rows = query("""
             SELECT h.id, h.book_edition, h.hadith_number, h.chapter_number,
                    h.text_english, h.text_arabic, h.grade,
                    b.name_english AS book_name,
@@ -261,27 +235,23 @@ object HadithRepository {
             LEFT JOIN chapters c ON h.book_edition = c.book_edition
                                  AND h.chapter_number = c.chapter_number
             LIMIT 1 OFFSET ?
-            """.trimIndent(),
-            listOf(offset)
-        )
+        """.trimIndent(), listOf(offset))
+
         rows.firstOrNull()?.let { row ->
             val bookEdition = row["book_edition"] ?: ""
             Hadith(
-                id             = row["id"]?.toIntOrNull() ?: 0,
-                hadithNumber   = row["hadith_number"] ?: "",
-                hadithEnglish  = row["text_english"] ?: "",
-                hadithArabic   = row["text_arabic"] ?: "",
-                hadithUrdu     = "",
+                id              = row["id"]?.toIntOrNull() ?: 0,
+                hadithNumber    = row["hadith_number"] ?: "",
+                hadithEnglish   = row["text_english"] ?: "",
+                hadithArabic    = row["text_arabic"] ?: "",
+                hadithUrdu      = "",
                 englishNarrator = "",
-                urduNarrator   = "",
-                chapterNumber  = row["chapter_number"],
-                chapterEnglish = row["chapter_name"],
-                bookSlug       = bookEdition,
-                status         = row["grade"],
-                book           = BookInfo(
-                    bookName = row["book_name"] ?: bookEdition,
-                    slug     = bookEdition
-                )
+                urduNarrator    = "",
+                chapterNumber   = row["chapter_number"],
+                chapterEnglish  = row["chapter_name"],
+                bookSlug        = bookEdition,
+                status          = row["grade"],
+                book            = BookInfo(bookName = row["book_name"] ?: bookEdition, slug = bookEdition)
             )
         }
     }.recoverCatching { error(it.toUserMessage()) }
@@ -291,21 +261,18 @@ object HadithRepository {
     private fun List<Map<String, String?>>.toHadiths(): List<Hadith> = map { row ->
         val bookEdition = row["book_edition"] ?: ""
         Hadith(
-            id             = row["id"]?.toIntOrNull() ?: 0,
-            hadithNumber   = row["hadith_number"] ?: "",
-            hadithEnglish  = row["text_english"] ?: "",
-            hadithArabic   = row["text_arabic"] ?: "",
-            hadithUrdu     = "",
+            id              = row["id"]?.toIntOrNull() ?: 0,
+            hadithNumber    = row["hadith_number"] ?: "",
+            hadithEnglish   = row["text_english"] ?: "",
+            hadithArabic    = row["text_arabic"] ?: "",
+            hadithUrdu      = "",
             englishNarrator = "",
-            urduNarrator   = "",
-            chapterNumber  = row["chapter_number"],
-            chapterEnglish = row["chapter_name"],
-            bookSlug       = bookEdition,
-            status         = row["grade"],
-            book           = BookInfo(
-                bookName = row["book_name"] ?: bookEdition,
-                slug     = bookEdition
-            )
+            urduNarrator    = "",
+            chapterNumber   = row["chapter_number"],
+            chapterEnglish  = row["chapter_name"],
+            bookSlug        = bookEdition,
+            status          = row["grade"],
+            book            = BookInfo(bookName = row["book_name"] ?: bookEdition, slug = bookEdition)
         )
     }
 }
